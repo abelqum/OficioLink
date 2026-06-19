@@ -52,7 +52,19 @@ export default function ClienteDashboard() {
   const [ubicacionCliente, setUbicacionCliente] = useState(null);
   const [busqueda, setBusqueda] = useState("");
   const [cargandoDatos, setCargandoDatos] = useState(true);
+const responderCotizacion = async (id, nuevoEstado) => {
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({ estado: nuevoEstado })
+      .eq('id', id);
 
+    if (error) {
+      toast.error("Hubo un error al responder");
+    } else {
+      toast.success(nuevoEstado === 'en_proceso' ? "¡Trabajo aceptado!" : "Trabajo rechazado");
+      window.location.reload();
+    }
+  };
   const cargarDatos = async (user) => {
     // 1. Cargar el buscador de trabajadores
     const { data: dataTrabajadores } = await supabase
@@ -62,11 +74,12 @@ export default function ClienteDashboard() {
     if (dataTrabajadores) setTrabajadores(dataTrabajadores);
 
     // 2. Cargar el historial (Ajustado para evitar errores de relación)
+   // 2. Cargar el historial (Ajustado)
     const { data: dataHistorial, error: errorHistorial } = await supabase
       .from("solicitudes")
       .select(
         `
-        id, estado, metodo_pago, servicio_detalle, creado_en, trabajador_id,
+        id, estado, metodo_pago, servicio_detalle, creado_en, trabajador_id, precio_acordado,
         trabajadores (
           nombre_completo,
           oficios (nombre)
@@ -99,7 +112,7 @@ export default function ClienteDashboard() {
       // MAGIA EN TIEMPO REAL: Le ponemos un nombre único al canal con Date.now()
       canalRealtime = supabase.channel(`cambios-${Date.now()}`);
 
-      canalRealtime
+    canalRealtime
         .on(
           "postgres_changes",
           {
@@ -112,7 +125,11 @@ export default function ClienteDashboard() {
             setHistorial((historialActual) =>
               historialActual.map((item) =>
                 item.id === payload.new.id
-                  ? { ...item, estado: payload.new.estado }
+                  ? { 
+                      ...item, 
+                      estado: payload.new.estado,
+                      precio_acordado: payload.new.precio_acordado // <-- ¡ESTO ES LO NUEVO!
+                    }
                   : item,
               ),
             );
@@ -301,6 +318,9 @@ export default function ClienteDashboard() {
               {/* ======================================================== */}
               {/* PESTAÑA HISTORIAL CON BOTÓN DE CALIFICAR                   */}
               {/* ======================================================== */}
+             {/* ======================================================== */}
+              {/* PESTAÑA HISTORIAL CON BOTÓN DE CALIFICAR                   */}
+              {/* ======================================================== */}
               <TabsContent value="historial" className="space-y-6">
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex justify-between items-center">
                   <div>
@@ -330,16 +350,21 @@ export default function ClienteDashboard() {
                     {historial.map((item) => (
                       <Card
                         key={item.id}
-                        className="border-0 shadow-sm overflow-hidden bg-white hover:shadow-md transition-shadow"
+                        className="border-0 shadow-sm overflow-hidden bg-white hover:shadow-md transition-shadow flex flex-col"
                       >
                         <div className="flex flex-col md:flex-row">
+                          {/* BARRA LATERAL DE COLOR SEGÚN ESTADO ACTUALIZADA */}
                           <div
                             className={`w-full md:w-3 h-2 md:h-auto ${
                               item.estado === "pendiente"
                                 ? "bg-amber-400"
-                                : item.estado === "en_proceso"
-                                  ? "bg-[#14A5B8]"
-                                  : "bg-green-500"
+                                : item.estado === "cotizado"
+                                  ? "bg-purple-500"
+                                  : item.estado === "en_proceso"
+                                    ? "bg-[#14A5B8]"
+                                    : item.estado === "rechazado"
+                                      ? "bg-red-500"
+                                      : "bg-green-500"
                             }`}
                           />
 
@@ -364,20 +389,29 @@ export default function ClienteDashboard() {
                             </div>
 
                             <div className="flex flex-col items-start md:items-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
+                              {/* BADGE DE ESTADO ACTUALIZADO */}
                               <Badge
                                 className={`${
                                   item.estado === "pendiente"
                                     ? "bg-amber-100 text-amber-800"
-                                    : item.estado === "en_proceso"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : "bg-green-100 text-green-800"
+                                    : item.estado === "cotizado"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : item.estado === "en_proceso"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : item.estado === "rechazado"
+                                          ? "bg-red-100 text-red-800"
+                                          : "bg-green-100 text-green-800"
                                 } uppercase tracking-wider px-4 py-2 text-xs font-bold border-0`}
                               >
                                 {item.estado === "pendiente"
                                   ? "⏳ Esperando Confirmación"
-                                  : item.estado === "en_proceso"
-                                    ? "🛠️ Trabajo en Proceso"
-                                    : "✅ Completado"}
+                                  : item.estado === "cotizado"
+                                    ? "💰 Presupuesto Recibido"
+                                    : item.estado === "en_proceso"
+                                      ? "🛠️ Trabajo en Proceso"
+                                      : item.estado === "rechazado"
+                                        ? "❌ Rechazado"
+                                        : "✅ Completado"}
                               </Badge>
 
                               <p className="text-sm text-slate-500 flex items-center gap-1">
@@ -385,14 +419,42 @@ export default function ClienteDashboard() {
                                 {item.metodo_pago}
                               </p>
 
-                              {/* NUEVO: BOTÓN DE CALIFICAR (SOLO SI ESTÁ COMPLETADO) */}
-                              {/* BOTÓN INTELIGENTE DE CALIFICAR */}
+                              {/* BOTÓN DE CALIFICAR */}
                               {item.estado === "completado" && (
                                 <ModalCalificar solicitud={item} />
                               )}
                             </div>
                           </div>
                         </div>
+
+                        {/* ======================================================== */}
+                        {/* LÓGICA DE APROBACIÓN DEL CLIENTE (COTIZACIÓN)            */}
+                        {/* ======================================================== */}
+                        {item.estado === 'cotizado' && (
+                          <div className="bg-[#14A5B8]/5 border-t border-[#14A5B8]/20 p-6 md:pl-9">
+                            <p className="font-black text-[#14A5B8] text-xl mb-1">
+                              El experto propone: ${item.precio_acordado} MXN
+                            </p>
+                            <p className="text-sm text-slate-600 mb-5">
+                              ¿Aceptas este presupuesto para que el experto comience el trabajo en tu ubicación?
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              <Button 
+                                onClick={() => responderCotizacion(item.id, 'en_proceso')} 
+                                className="bg-[#14A5B8] hover:bg-[#0f8494] text-white font-bold h-12 rounded-xl px-8 shadow-md"
+                              >
+                                Aceptar y Contratar
+                              </Button>
+                              <Button 
+                                onClick={() => responderCotizacion(item.id, 'rechazado')} 
+                                variant="outline" 
+                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-12 rounded-xl px-8"
+                              >
+                                Rechazar Presupuesto
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </Card>
                     ))}
                   </div>

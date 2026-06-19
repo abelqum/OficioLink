@@ -27,6 +27,11 @@ import BotonEliminar from "@/components/ui/BotonEliminar";
 import Image from "next/image";
 // 👇 NUESTRO NUEVO COMPONENTE 👇
 import Sidebar from "@/components/ui/Sidebar";
+// 1. Hasta arriba en tus imports:
+import Estrellas from "@/components/ui/Estrellas";
+import { Star } from "lucide-react";
+
+
 export default function TrabajadorDashboard() {
   const supabase = createClient();
   const router = useRouter();
@@ -38,7 +43,33 @@ export default function TrabajadorDashboard() {
   const [subiendo, setSubiendo] = useState(false);
   const [archivo, setArchivo] = useState(null);
   const [descripcionFoto, setDescripcionFoto] = useState("");
+const [cotizaciones, setCotizaciones] = useState({}); // Guarda lo que escribe en el input
+// 2. Adentro de tu componente TrabajadorDashboard, junto a los otros estados:
+const [resenas, setResenas] = useState([]);
+  const enviarCotizacion = async (solId) => {
+    const precio = parseFloat(cotizaciones[solId]);
+    if (!precio || precio <= 0) return toast.error("Ingresa un precio válido");
+    
+    const comision = precio * 0.10; // 10% de comisión para tu app
 
+    const { error } = await supabase
+      .from('solicitudes')
+      .update({ 
+        estado: 'cotizado', 
+        precio_acordado: precio, 
+        comision_app: comision 
+      })
+      .eq('id', solId);
+
+    if (error) {
+      toast.error("Error al enviar cotización");
+    } else {
+      toast.success("Cotización enviada al cliente");
+      // Opcional: recargar solicitudes aquí si tienes una función para eso, 
+      // o simplemente recargar la página: window.location.reload();
+      window.location.reload(); 
+    }
+  };
   const cargarDatos = async (userId) => {
     // 1. Cargar solicitudes con toda la relación de la dirección del cliente
     const { data: dataSol, error: errorSol } = await supabase
@@ -79,7 +110,7 @@ export default function TrabajadorDashboard() {
     setLoading(false);
   };
 
-  useEffect(() => {
+ useEffect(() => {
     let canalRealtime;
 
     const verificarAcceso = async () => {
@@ -100,7 +131,21 @@ export default function TrabajadorDashboard() {
       }
 
       setPerfil(trabajador);
+      
+      // Carga de solicitudes y portafolio
       await cargarDatos(session.user.id);
+
+      // ==========================================
+      // NUEVO: CARGAR LAS RESEÑAS DEL TRABAJADOR
+      // ==========================================
+      const { data: misResenas } = await supabase
+        .from('resenas')
+        .select('*, usuarios(nombre_completo)')
+        .eq('trabajador_id', session.user.id)
+        .order('creado_en', { ascending: false });
+
+      if (misResenas) setResenas(misResenas);
+      // ==========================================
 
       // Escuchar cambios en tiempo real
       canalRealtime = supabase
@@ -350,28 +395,52 @@ export default function TrabajadorDashboard() {
                             </div>
                           </div>
 
-                          <div className="flex gap-3 mt-6">
-                            {sol.estado === "pendiente" && (
-                              <Button
-                                onClick={() =>
-                                  actualizarEstado(sol.id, "en_proceso")
-                                }
-                                className="flex-1 bg-[#14A5B8] h-12 rounded-xl font-bold"
-                              >
-                                Aceptar Trabajo
-                              </Button>
-                            )}
-                            {sol.estado === "en_proceso" && (
-                              <Button
-                                onClick={() =>
-                                  actualizarEstado(sol.id, "completado")
-                                }
-                                className="flex-1 bg-green-600 h-12 rounded-xl font-bold"
-                              >
-                                Finalizar Trabajo
-                              </Button>
-                            )}
-                          </div>
+                          {/* LÓGICA DE ESTADOS DEL TRABAJADOR */}
+<div className="mt-6 border-t border-slate-100 pt-4">
+  
+  {/* ESTADO 1: PENDIENTE (El trabajador propone el precio) */}
+  {sol.estado === 'pendiente' && (
+    <div className="space-y-3 bg-slate-50 p-4 rounded-xl">
+      <Label className="text-[#14A5B8] font-bold">Propón un precio por este trabajo:</Label>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+          <Input 
+            type="number" 
+            placeholder="0.00" 
+            className="pl-8 h-12 rounded-xl"
+            onChange={(e) => setCotizaciones({...cotizaciones, [sol.id]: e.target.value})} 
+          />
+        </div>
+        <Button onClick={() => enviarCotizacion(sol.id)} className="h-12 bg-slate-900 rounded-xl font-bold">
+          Enviar Cotización
+        </Button>
+      </div>
+      {/* Muestra la ganancia en tiempo real */}
+      {cotizaciones[sol.id] > 0 && (
+        <p className="text-xs text-slate-500 font-medium">
+          Comisión de la app (10%): <span className="text-red-500 font-bold">-${(cotizaciones[sol.id] * 0.10).toFixed(2)}</span> | 
+          Tú recibes: <span className="text-green-600 font-black">${(cotizaciones[sol.id] * 0.90).toFixed(2)}</span>
+        </p>
+      )}
+    </div>
+  )}
+
+  {/* ESTADO 2: COTIZADO (Esperando al cliente) */}
+  {sol.estado === 'cotizado' && (
+    <div className="bg-amber-50 text-amber-700 p-4 rounded-xl text-center font-bold text-sm border border-amber-200">
+      ⏳ Esperando a que el cliente acepte tu precio de ${sol.precio_acordado}
+    </div>
+  )}
+
+  {/* ESTADO 3: EN PROCESO (El cliente aceptó) */}
+  {sol.estado === 'en_proceso' && (
+    <Button onClick={() => actualizarEstado(sol.id, 'completado')} className="w-full bg-green-600 hover:bg-green-700 h-12 rounded-xl font-bold text-lg">
+      <CheckCircle2 className="mr-2 h-5 w-5" /> Finalizar Trabajo
+    </Button>
+  )}
+
+</div>
                         </div>
                       </div>
                     </Card>
@@ -432,6 +501,51 @@ export default function TrabajadorDashboard() {
                 ))}
               </div>
             </div>
+          </div>
+          {/* ======================================================== */}
+          {/* SECCIÓN: MIS RESEÑAS Y CALIFICACIONES                    */}
+          {/* ======================================================== */}
+          <div className="mt-12 space-y-6">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Star className="h-6 w-6 text-yellow-400 fill-current" />
+              Mis Reseñas y Calificaciones ({resenas.length})
+            </h2>
+
+            {resenas.length === 0 ? (
+              <Card className="border-dashed border-2 py-12 text-center bg-transparent shadow-none">
+                <p className="text-slate-500 font-medium">
+                  Aún no tienes reseñas. ¡Finaliza trabajos para que tus clientes te califiquen!
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {resenas.map((r) => (
+                  <Card key={r.id} className="border-0 shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-all">
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#14A5B8]">
+                            {r.usuarios?.nombre_completo?.[0] || "C"}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 leading-tight">
+                              {r.usuarios?.nombre_completo || "Cliente"}
+                            </p>
+                            <Estrellas calificacion={r.calificacion} tamano="h-3 w-3" />
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          {new Date(r.creado_en).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-slate-600 text-sm italic bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        {r.comentario || "El cliente te calificó con estrellas pero no dejó un comentario escrito."}
+                      </p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         </main>
       </div>
