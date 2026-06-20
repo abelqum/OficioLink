@@ -5,11 +5,14 @@ import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordField from "@/components/ui/PasswordField";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  AlertCircle,
   ArrowLeft,
   BadgeCheck,
   Camera,
+  CheckCircle2,
   Loader2,
   MapPin,
   ShieldCheck,
@@ -32,6 +35,8 @@ export default function RegistroPage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [estadoRegistro, setEstadoRegistro] = useState("");
+  const [mensajeError, setMensajeError] = useState("");
   const [oficios, setOficios] = useState([]);
   const [oficiosSeleccionados, setOficiosSeleccionados] = useState([]);
   const [zonasCobertura, setZonasCobertura] = useState([]);
@@ -105,12 +110,14 @@ export default function RegistroPage() {
     }
 
     if (tipo === "cliente") {
+      setEstadoRegistro("Buscando tu dirección con GPS...");
       setDireccion((prev) => ({
         ...prev,
         calle: "Buscando...",
         colonia: "Buscando...",
       }));
     } else {
+      setEstadoRegistro("Buscando tu zona de cobertura...");
       setLocation((prev) => ({
         ...prev,
         name: "Buscando zona y coordenadas...",
@@ -158,6 +165,7 @@ export default function RegistroPage() {
               colonia: coloniaEncontrada,
               cp: addr.postcode || "",
             }));
+            setEstadoRegistro("Dirección detectada. Revisa los datos antes de continuar.");
           } else {
             const zonaTexto = municipio
               ? `${municipio}, ${estado}`
@@ -170,6 +178,7 @@ export default function RegistroPage() {
             if (zonaLimpia && !zonasCobertura.includes(zonaLimpia)) {
               setZonasCobertura((actuales) => [...actuales, zonaLimpia]);
             }
+            setEstadoRegistro("Zona detectada. Puedes agregar más zonas si trabajas en varias.");
           }
         } catch (error) {
           console.error("Error al traducir coordenadas:", error);
@@ -179,6 +188,7 @@ export default function RegistroPage() {
           if (tipo === "cliente")
             setDireccion((prev) => ({ ...prev, calle: "", colonia: "" }));
           else setLocation((prev) => ({ ...prev, name: "" }));
+          setEstadoRegistro("");
         }
       },
       () => {
@@ -188,6 +198,7 @@ export default function RegistroPage() {
         if (tipo === "cliente")
           setDireccion((prev) => ({ ...prev, calle: "", colonia: "" }));
         else setLocation((prev) => ({ ...prev, name: "" }));
+        setEstadoRegistro("");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
@@ -196,10 +207,15 @@ export default function RegistroPage() {
   const handleRegistro = async (e, tipo) => {
     e.preventDefault();
     setLoading(true);
+    setMensajeError("");
+    setEstadoRegistro("Creando tu cuenta segura...");
     const formData = new FormData(e.target);
 
     if (tipo === "trabajador" && oficiosSeleccionados.length === 0) {
-      toast.error("Selecciona al menos un oficio.");
+      const mensaje = "Selecciona al menos un oficio.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
       setLoading(false);
       return;
     }
@@ -210,6 +226,8 @@ export default function RegistroPage() {
     });
 
     if (authError) {
+      setMensajeError(authError.message);
+      setEstadoRegistro("");
       toast.error(authError.message);
       setLoading(false);
       return;
@@ -218,6 +236,7 @@ export default function RegistroPage() {
     const userId = authData.user.id;
 
     if (tipo === "cliente") {
+      setEstadoRegistro("Guardando tu dirección de servicio...");
       const { error: dbError } = await supabase.from("usuarios").insert({
         id: userId,
         nombre_completo: formData.get("nombre"),
@@ -232,17 +251,22 @@ export default function RegistroPage() {
 
       if (dbError) {
         console.error("ERROR AL GUARDAR CLIENTE:", dbError);
-        toast.error(`Error en la base de datos: ${dbError.message}`);
+        const mensaje = `Error en la base de datos: ${dbError.message}`;
+        setMensajeError(mensaje);
+        setEstadoRegistro("");
+        toast.error(mensaje);
         setLoading(false);
         return;
       }
 
+      setEstadoRegistro("Cuenta creada. Abriendo tu panel...");
       router.push("/cliente");
       setLoading(false);
       return;
     }
 
     try {
+      setEstadoRegistro("Subiendo foto y documentos, si los agregaste...");
       const avatarUrl = await subirArchivo("avatares", avatarFile, userId, "perfil");
       const identidadUrl = await subirArchivo(
         "verificaciones_identidad",
@@ -266,6 +290,7 @@ export default function RegistroPage() {
         verificacion_estado: identidadUrl ? "pendiente" : "sin_enviar",
       };
 
+      setEstadoRegistro("Guardando tu perfil profesional...");
       const { error } = await supabase.from("trabajadores").insert(payloadCompleto);
 
       if (error) {
@@ -287,10 +312,14 @@ export default function RegistroPage() {
         );
       }
 
+      setEstadoRegistro("Perfil creado. Abriendo tu panel de trabajador...");
       router.push("/trabajador");
     } catch (error) {
       console.error("ERROR AL GUARDAR TRABAJADOR:", error);
-      toast.error(`Error al crear el perfil: ${error.message}`);
+      const mensaje = `Error al crear el perfil: ${error.message}`;
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
     } finally {
       setLoading(false);
     }
@@ -331,7 +360,7 @@ export default function RegistroPage() {
 
             <TabsContent value="cliente">
               <form onSubmit={(e) => handleRegistro(e, "cliente")} className="grid gap-4">
-                <CamposBasicos />
+                <CamposBasicos disabled={loading} />
                 <div className="border-t pt-4 mt-2">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <Label className="text-lg font-bold text-[#14A5B8]">
@@ -398,8 +427,21 @@ export default function RegistroPage() {
                   </div>
                 </div>
 
+                <EstadoFormulario
+                  loading={loading}
+                  estado={estadoRegistro}
+                  error={mensajeError}
+                />
+
                 <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-4 text-lg">
-                  {loading ? <Loader2 className="animate-spin" /> : "Crear cuenta de Cliente"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Creando cuenta...
+                    </>
+                  ) : (
+                    "Crear cuenta de Cliente"
+                  )}
                 </Button>
               </form>
             </TabsContent>
@@ -409,7 +451,7 @@ export default function RegistroPage() {
                 onSubmit={(e) => handleRegistro(e, "trabajador")}
                 className="grid gap-5"
               >
-                <CamposBasicos />
+                <CamposBasicos disabled={loading} />
 
                 <div className="grid gap-3 border-t pt-5">
                   <Label className="text-base font-bold flex items-center gap-2">
@@ -522,8 +564,21 @@ export default function RegistroPage() {
                   </div>
                 </div>
 
+                <EstadoFormulario
+                  loading={loading}
+                  estado={estadoRegistro}
+                  error={mensajeError}
+                />
+
                 <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-2">
-                  {loading ? <Loader2 className="animate-spin" /> : "Unirse como experto"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Creando perfil...
+                    </>
+                  ) : (
+                    "Unirse como experto"
+                  )}
                 </Button>
               </form>
             </TabsContent>
@@ -543,25 +598,51 @@ function CampoDireccion({ label, value, onChange, required = true }) {
   );
 }
 
-function CamposBasicos() {
+function EstadoFormulario({ loading, estado, error }) {
+  if (!loading && !error && !estado) return null;
+
+  return (
+    <div
+      role={error ? "alert" : "status"}
+      aria-live="polite"
+      className={`flex items-start gap-3 rounded-2xl border p-4 text-sm font-semibold ${
+        error
+          ? "border-red-200 bg-red-50 text-red-700"
+          : "border-[#14A5B8]/20 bg-[#14A5B8]/10 text-[#0f8494]"
+      }`}
+    >
+      {error ? (
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+      ) : loading ? (
+        <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+      ) : (
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+      )}
+      <span>{error || estado}</span>
+    </div>
+  );
+}
+
+function CamposBasicos({ disabled = false }) {
   return (
     <>
       <div className="grid gap-2">
         <Label>Nombre Completo</Label>
-        <Input name="nombre" required />
+        <Input name="nombre" disabled={disabled} required />
       </div>
       <div className="grid gap-2">
         <Label>Teléfono</Label>
-        <Input name="telefono" type="tel" required />
+        <Input name="telefono" type="tel" disabled={disabled} required />
       </div>
       <div className="grid gap-2">
         <Label>Correo</Label>
-        <Input name="email" type="email" required />
+        <Input name="email" type="email" autoComplete="email" disabled={disabled} required />
       </div>
-      <div className="grid gap-2">
-        <Label>Contraseña</Label>
-        <Input name="password" type="password" required />
-      </div>
+      <PasswordField
+        disabled={disabled}
+        autoComplete="new-password"
+        helperText="Usa una contraseña segura y revisa Bloq Mayús."
+      />
     </>
   );
 }
