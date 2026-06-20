@@ -37,6 +37,8 @@ export default function RegistroPage() {
   const [loading, setLoading] = useState(false);
   const [estadoRegistro, setEstadoRegistro] = useState("");
   const [mensajeError, setMensajeError] = useState("");
+  const [passwordRegistro, setPasswordRegistro] = useState("");
+  const [passwordValida, setPasswordValida] = useState(false);
   const [oficios, setOficios] = useState([]);
   const [oficiosSeleccionados, setOficiosSeleccionados] = useState([]);
   const [zonasCobertura, setZonasCobertura] = useState([]);
@@ -210,6 +212,17 @@ export default function RegistroPage() {
     setMensajeError("");
     setEstadoRegistro("Creando tu cuenta segura...");
     const formData = new FormData(e.target);
+    const password = formData.get("password")?.toString() || "";
+
+    if (!/[A-ZÁÉÍÓÚÑ]/.test(password) || !/[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]/.test(password)) {
+      const mensaje =
+        "La contraseña debe incluir al menos una letra mayúscula y un símbolo especial.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      return;
+    }
 
     if (tipo === "trabajador" && oficiosSeleccionados.length === 0) {
       const mensaje = "Selecciona al menos un oficio.";
@@ -222,7 +235,7 @@ export default function RegistroPage() {
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.get("email"),
-      password: formData.get("password"),
+      password,
     });
 
     if (authError) {
@@ -360,7 +373,12 @@ export default function RegistroPage() {
 
             <TabsContent value="cliente">
               <form onSubmit={(e) => handleRegistro(e, "cliente")} className="grid gap-4">
-                <CamposBasicos disabled={loading} />
+                <CamposBasicos
+                  disabled={loading}
+                  password={passwordRegistro}
+                  onPasswordChange={(event) => setPasswordRegistro(event.target.value)}
+                  onPasswordValidityChange={setPasswordValida}
+                />
                 <div className="border-t pt-4 mt-2">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <Label className="text-lg font-bold text-[#14A5B8]">
@@ -433,7 +451,10 @@ export default function RegistroPage() {
                   error={mensajeError}
                 />
 
-                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-4 text-lg">
+                <Button
+                  disabled={loading || !passwordValida}
+                  className="bg-[#14A5B8] h-12 mt-4 text-lg"
+                >
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin h-5 w-5 mr-2" />
@@ -451,7 +472,12 @@ export default function RegistroPage() {
                 onSubmit={(e) => handleRegistro(e, "trabajador")}
                 className="grid gap-5"
               >
-                <CamposBasicos disabled={loading} />
+                <CamposBasicos
+                  disabled={loading}
+                  password={passwordRegistro}
+                  onPasswordChange={(event) => setPasswordRegistro(event.target.value)}
+                  onPasswordValidityChange={setPasswordValida}
+                />
 
                 <div className="grid gap-3 border-t pt-5">
                   <Label className="text-base font-bold flex items-center gap-2">
@@ -570,7 +596,10 @@ export default function RegistroPage() {
                   error={mensajeError}
                 />
 
-                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-2">
+                <Button
+                  disabled={loading || !passwordValida}
+                  className="bg-[#14A5B8] h-12 mt-2"
+                >
                   {loading ? (
                     <>
                       <Loader2 className="animate-spin h-5 w-5 mr-2" />
@@ -623,7 +652,12 @@ function EstadoFormulario({ loading, estado, error }) {
   );
 }
 
-function CamposBasicos({ disabled = false }) {
+function CamposBasicos({
+  disabled = false,
+  password,
+  onPasswordChange,
+  onPasswordValidityChange,
+}) {
   return (
     <>
       <div className="grid gap-2">
@@ -641,7 +675,11 @@ function CamposBasicos({ disabled = false }) {
       <PasswordField
         disabled={disabled}
         autoComplete="new-password"
-        helperText="Usa una contraseña segura y revisa Bloq Mayús."
+        helperText="Debe incluir una mayúscula y un símbolo especial."
+        showStrength
+        value={password}
+        onChange={onPasswordChange}
+        onValidityChange={onPasswordValidityChange}
       />
     </>
   );
