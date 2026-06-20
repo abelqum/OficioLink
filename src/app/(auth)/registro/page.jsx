@@ -1,36 +1,43 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  User,
-  Briefcase,
-  Mail,
-  Lock,
-  Phone,
-  MapPin,
+  ArrowLeft,
+  BadgeCheck,
+  Camera,
   Loader2,
+  MapPin,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+
+const zonasSugeridas = [
+  "Centro",
+  "Norte",
+  "Sur",
+  "Oriente",
+  "Poniente",
+  "Área metropolitana",
+];
+
 export default function RegistroPage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [oficios, setOficios] = useState([]);
+  const [oficiosSeleccionados, setOficiosSeleccionados] = useState([]);
+  const [zonasCobertura, setZonasCobertura] = useState([]);
+  const [zonaManual, setZonaManual] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [identidadFile, setIdentidadFile] = useState(null);
   const [location, setLocation] = useState({ lat: null, lng: null, name: "" });
   const [direccion, setDireccion] = useState({
     calle: "",
@@ -40,21 +47,63 @@ export default function RegistroPage() {
     cp: "",
     referencias: "",
   });
-  // Cargar oficios desde la base de datos
+
   useEffect(() => {
     const fetchOficios = async () => {
       const { data } = await supabase.from("oficios").select("id, nombre");
       if (data) setOficios(data);
     };
     fetchOficios();
-  }, []);
+  }, [supabase]);
+
+  const toggleOficio = (id) => {
+    setOficiosSeleccionados((actuales) =>
+      actuales.includes(id)
+        ? actuales.filter((item) => item !== id)
+        : [...actuales, id],
+    );
+  };
+
+  const toggleZona = (zona) => {
+    setZonasCobertura((actuales) =>
+      actuales.includes(zona)
+        ? actuales.filter((item) => item !== zona)
+        : [...actuales, zona],
+    );
+  };
+
+  const agregarZonaManual = () => {
+    const zona = zonaManual.trim();
+    if (!zona) return;
+    if (!zonasCobertura.includes(zona)) {
+      setZonasCobertura((actuales) => [...actuales, zona]);
+    }
+    setZonaManual("");
+  };
+
+  const subirArchivo = async (bucket, archivo, userId, prefijo) => {
+    if (!archivo) return null;
+
+    const fileExt = archivo.name.split(".").pop();
+    const filePath = `${userId}/${prefijo}-${Date.now()}.${fileExt}`;
+    const { error } = await supabase.storage.from(bucket).upload(filePath, archivo, {
+      upsert: true,
+    });
+
+    if (error) throw error;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    return publicUrl;
+  };
 
   const handleGetLocation = (tipo) => {
     if (!navigator.geolocation) {
       return toast.error("Geolocalización no soportada en este navegador.");
     }
 
-    // 1. Mostrar estado de carga dependiendo de quién lo pidió
     if (tipo === "cliente") {
       setDireccion((prev) => ({
         ...prev,
@@ -67,12 +116,6 @@ export default function RegistroPage() {
         name: "Buscando zona y coordenadas...",
       }));
     }
-
-    const opcionesGPS = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    };
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -95,7 +138,6 @@ export default function RegistroPage() {
 
           if (!addr) throw new Error("No se encontró dirección");
 
-          // Extracción masiva de datos de OpenStreetMap
           const calleEncontrada =
             addr.road || addr.pedestrian || addr.street || addr.path || "";
           const coloniaEncontrada =
@@ -108,7 +150,6 @@ export default function RegistroPage() {
             addr.municipality || addr.city || addr.town || addr.county || "";
           const estado = addr.state || "";
 
-          // 2. Guardar donde corresponde según el tipo de usuario
           if (tipo === "cliente") {
             setDireccion((prev) => ({
               ...prev,
@@ -118,18 +159,17 @@ export default function RegistroPage() {
               cp: addr.postcode || "",
             }));
           } else {
-            // El trabajador necesita Lat, Lng y una "Zona" general (Ej. Naucalpan, Estado de México)
             const zonaTexto = municipio
               ? `${municipio}, ${estado}`
               : `${coloniaEncontrada}, ${estado}`;
+            const zonaLimpia = zonaTexto
+              .replace(/^, | ,$|(, )+/g, ", ")
+              .replace(/^, /, "");
 
-            setLocation({
-              lat: lat,
-              lng: lng,
-              name: zonaTexto
-                .replace(/^, | ,$|(, )+/g, ", ")
-                .replace(/^, /, ""), // Limpia comas extra
-            });
+            setLocation({ lat, lng, name: zonaLimpia });
+            if (zonaLimpia && !zonasCobertura.includes(zonaLimpia)) {
+              setZonasCobertura((actuales) => [...actuales, zonaLimpia]);
+            }
           }
         } catch (error) {
           console.error("Error al traducir coordenadas:", error);
@@ -141,7 +181,7 @@ export default function RegistroPage() {
           else setLocation((prev) => ({ ...prev, name: "" }));
         }
       },
-      (error) => {
+      () => {
         toast.error(
           "No pudimos acceder a tu ubicación. Verifica los permisos de tu navegador.",
         );
@@ -149,13 +189,20 @@ export default function RegistroPage() {
           setDireccion((prev) => ({ ...prev, calle: "", colonia: "" }));
         else setLocation((prev) => ({ ...prev, name: "" }));
       },
-      opcionesGPS,
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
+
   const handleRegistro = async (e, tipo) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.target);
+
+    if (tipo === "trabajador" && oficiosSeleccionados.length === 0) {
+      toast.error("Selecciona al menos un oficio.");
+      setLoading(false);
+      return;
+    }
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.get("email"),
@@ -183,54 +230,99 @@ export default function RegistroPage() {
         referencias: direccion.referencias,
       });
 
-      // 👇 ESTO ES LO QUE NOS FALTABA 👇
       if (dbError) {
-        console.error("🚨 ERROR AL GUARDAR CLIENTE:", dbError);
+        console.error("ERROR AL GUARDAR CLIENTE:", dbError);
         toast.error(`Error en la base de datos: ${dbError.message}`);
         setLoading(false);
         return;
       }
 
       router.push("/cliente");
-    } else {
-      await supabase.from("trabajadores").insert({
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const avatarUrl = await subirArchivo("avatares", avatarFile, userId, "perfil");
+      const identidadUrl = await subirArchivo(
+        "verificaciones_identidad",
+        identidadFile,
+        userId,
+        "identidad",
+      );
+      const zonasFinales = zonasCobertura.length ? zonasCobertura : [location.name];
+      const payloadCompleto = {
         id: userId,
         nombre_completo: formData.get("nombre"),
         telefono: formData.get("telefono"),
-        oficio_id: formData.get("oficio"),
+        oficio_id: oficiosSeleccionados[0],
+        oficio_ids: oficiosSeleccionados,
         ubicacion_latitud: location.lat,
         ubicacion_longitud: location.lng,
-        nombre_zona: location.name,
-      });
+        nombre_zona: location.name || zonasFinales.filter(Boolean).join(", "),
+        zonas_cobertura: zonasFinales.filter(Boolean),
+        avatar_url: avatarUrl,
+        identidad_url: identidadUrl,
+        verificacion_estado: identidadUrl ? "pendiente" : "sin_enviar",
+      };
+
+      const { error } = await supabase.from("trabajadores").insert(payloadCompleto);
+
+      if (error) {
+        console.warn("Fallback a esquema anterior de trabajadores:", error);
+        const { error: fallbackError } = await supabase.from("trabajadores").insert({
+          id: userId,
+          nombre_completo: formData.get("nombre"),
+          telefono: formData.get("telefono"),
+          oficio_id: oficiosSeleccionados[0],
+          ubicacion_latitud: location.lat,
+          ubicacion_longitud: location.lng,
+          nombre_zona: location.name || zonasFinales.filter(Boolean).join(", "),
+        });
+
+        if (fallbackError) throw fallbackError;
+
+        toast.warning(
+          "Cuenta creada. Aplica la migración de Supabase para activar multi-oficio, foto y verificación.",
+        );
+      }
+
       router.push("/trabajador");
+    } catch (error) {
+      console.error("ERROR AL GUARDAR TRABAJADOR:", error);
+      toast.error(`Error al crear el perfil: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="flex min-h-screen relative bg-slate-50">
       <Link
         href="/login"
-        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-500 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-sm"
+        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-600 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-200 shadow-sm"
       >
         <ArrowLeft className="h-5 w-5" />
+        Volver
       </Link>
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-[#14A5B8] p-12 text-white">
-        <Image
-          src="/logo-letras.png"
-          alt="Logo"
-          width={250}
-          height={250}
-          className="mb-6"
-        />
 
-        <p className="text-xl text-center">
-          Únete a la comunidad más grande de expertos y clientes.
-        </p>
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-950 p-12 text-white">
+        <Image src="/logo-letras.png" alt="Logo" width={250} height={250} />
+        <div className="space-y-5 max-w-md">
+          <p className="text-sm uppercase tracking-[0.25em] text-[#14A5B8] font-bold">
+            OficioLink Pro
+          </p>
+          <h1 className="text-5xl font-black leading-tight">
+            Perfiles completos para trabajos reales.
+          </h1>
+          <p className="text-lg text-slate-300">
+            Registra tus oficios, zonas, portafolio e identidad desde el inicio.
+          </p>
+        </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-50 p-6 overflow-y-auto">
-        <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 overflow-y-auto">
+        <div className="w-full max-w-2xl bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-100">
           <Tabs defaultValue="cliente">
             <TabsList className="grid grid-cols-2 mb-8">
               <TabsTrigger value="cliente">Cliente</TabsTrigger>
@@ -238,21 +330,17 @@ export default function RegistroPage() {
             </TabsList>
 
             <TabsContent value="cliente">
-              <form
-                onSubmit={(e) => handleRegistro(e, "cliente")}
-                className="grid gap-4"
-              >
+              <form onSubmit={(e) => handleRegistro(e, "cliente")} className="grid gap-4">
                 <CamposBasicos />
-
                 <div className="border-t pt-4 mt-2">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <Label className="text-lg font-bold text-[#14A5B8]">
                       Dirección del Servicio
                     </Label>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      size="lg"
                       onClick={() => handleGetLocation("cliente")}
                       className="text-[#14A5B8] border-[#14A5B8]"
                     >
@@ -261,98 +349,57 @@ export default function RegistroPage() {
                   </div>
 
                   <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Calle</Label>
-                        <Input
-                          value={direccion.calle}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              calle: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Colonia</Label>
-                        <Input
-                          value={direccion.colonia}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              colonia: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <CampoDireccion
+                        label="Calle"
+                        value={direccion.calle}
+                        onChange={(value) => setDireccion({ ...direccion, calle: value })}
+                      />
+                      <CampoDireccion
+                        label="Colonia"
+                        value={direccion.colonia}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, colonia: value })
+                        }
+                      />
                     </div>
-
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>N° Ext</Label>
-                        <Input
-                          value={direccion.numero_ext}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              numero_ext: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>N° Int (Opcional)</Label>
-                        <Input
-                          value={direccion.numero_int}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              numero_int: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>C.P.</Label>
-                        <Input
-                          value={direccion.cp}
-                          onChange={(e) =>
-                            setDireccion({ ...direccion, cp: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
+                      <CampoDireccion
+                        label="No. Ext"
+                        value={direccion.numero_ext}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, numero_ext: value })
+                        }
+                      />
+                      <CampoDireccion
+                        label="No. Int"
+                        value={direccion.numero_int}
+                        required={false}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, numero_int: value })
+                        }
+                      />
+                      <CampoDireccion
+                        label="C.P."
+                        value={direccion.cp}
+                        onChange={(value) => setDireccion({ ...direccion, cp: value })}
+                      />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Referencias para llegar</Label>
                       <Input
-                        placeholder="Ej. Casa de dos pisos con portón negro frente al parque"
+                        placeholder="Ej. Portón negro frente al parque"
                         value={direccion.referencias}
                         onChange={(e) =>
-                          setDireccion({
-                            ...direccion,
-                            referencias: e.target.value,
-                          })
+                          setDireccion({ ...direccion, referencias: e.target.value })
                         }
                       />
                     </div>
                   </div>
                 </div>
 
-                <Button
-                  disabled={loading}
-                  className="bg-[#14A5B8] h-12 mt-4 text-lg"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    "Crear cuenta de Cliente"
-                  )}
+                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-4 text-lg">
+                  {loading ? <Loader2 className="animate-spin" /> : "Crear cuenta de Cliente"}
                 </Button>
               </form>
             </TabsContent>
@@ -360,36 +407,83 @@ export default function RegistroPage() {
             <TabsContent value="trabajador">
               <form
                 onSubmit={(e) => handleRegistro(e, "trabajador")}
-                className="grid gap-4"
+                className="grid gap-5"
               >
                 <CamposBasicos />
-                <div className="grid gap-2">
-                  <Label>Oficio</Label>
-                  <Select name="oficio" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu oficio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {oficios.map((o) => (
-                        <SelectItem key={o.id} value={o.id.toString()}>
-                          {o.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                <div className="grid gap-3 border-t pt-5">
+                  <Label className="text-base font-bold flex items-center gap-2">
+                    <BadgeCheck className="h-4 w-4 text-[#14A5B8]" />
+                    Oficios que ofreces
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {oficios.map((oficio) => {
+                      const activo = oficiosSeleccionados.includes(oficio.id);
+                      return (
+                        <button
+                          key={oficio.id}
+                          type="button"
+                          onClick={() => toggleOficio(oficio.id)}
+                          className={`text-left rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                            activo
+                              ? "border-[#14A5B8] bg-[#14A5B8]/10 text-[#0f8494]"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                          }`}
+                        >
+                          {oficio.nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                <div className="grid gap-2 border-t pt-4">
-                  <Label>Zona de Cobertura</Label>
+                <div className="grid gap-3 border-t pt-5">
+                  <Label className="text-base font-bold">Zonas de cobertura</Label>
                   <Input
                     name="zona"
                     value={location.name}
-                    onChange={(e) =>
-                      setLocation({ ...location, name: e.target.value })
-                    }
-                    placeholder="Escribe tu zona o usa el botón"
+                    onChange={(e) => setLocation({ ...location, name: e.target.value })}
+                    placeholder="Zona principal, municipio o alcaldía"
                     required
                   />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      value={zonaManual}
+                      onChange={(e) => setZonaManual(e.target.value)}
+                      placeholder="Agregar otra zona"
+                    />
+                    <Button type="button" variant="outline" onClick={agregarZonaManual}>
+                      Agregar
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {zonasSugeridas.map((zona) => (
+                      <button
+                        type="button"
+                        key={zona}
+                        onClick={() => toggleZona(zona)}
+                        className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
+                          zonasCobertura.includes(zona)
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-500 border-slate-200"
+                        }`}
+                      >
+                        {zona}
+                      </button>
+                    ))}
+                    {zonasCobertura
+                      .filter((zona) => !zonasSugeridas.includes(zona))
+                      .map((zona) => (
+                        <button
+                          type="button"
+                          key={zona}
+                          onClick={() => toggleZona(zona)}
+                          className="rounded-full px-3 py-1.5 text-xs font-bold border bg-slate-900 text-white border-slate-900"
+                        >
+                          {zona} x
+                        </button>
+                      ))}
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
@@ -400,18 +494,51 @@ export default function RegistroPage() {
                   </Button>
                 </div>
 
-                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-4">
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    "Unirse como experto"
-                  )}
+                <div className="grid gap-4 border-t pt-5">
+                  <Label className="text-base font-bold flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-[#14A5B8]" />
+                    Perfil profesional
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Foto de perfil</Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-blue-500" />
+                        Identificación para verificar
+                      </Label>
+                      <Input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-2">
+                  {loading ? <Loader2 className="animate-spin" /> : "Unirse como experto"}
                 </Button>
               </form>
             </TabsContent>
           </Tabs>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CampoDireccion({ label, value, onChange, required = true }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} required={required} />
     </div>
   );
 }

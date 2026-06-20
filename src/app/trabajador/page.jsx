@@ -38,11 +38,13 @@ export default function TrabajadorDashboard() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [portafolios, setPortafolios] = useState([]);
   const [perfil, setPerfil] = useState(null);
+  const [oficios, setOficios] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [subiendo, setSubiendo] = useState(false);
   const [archivo, setArchivo] = useState(null);
   const [descripcionFoto, setDescripcionFoto] = useState("");
+  const [oficioPortafolio, setOficioPortafolio] = useState("");
 const [cotizaciones, setCotizaciones] = useState({}); // Guarda lo que escribe en el input
 // 2. Adentro de tu componente TrabajadorDashboard, junto a los otros estados:
 const [resenas, setResenas] = useState([]);
@@ -131,6 +133,19 @@ const [resenas, setResenas] = useState([]);
       }
 
       setPerfil(trabajador);
+
+      const { data: listaOficios } = await supabase
+        .from("oficios")
+        .select("id, nombre")
+        .order("nombre");
+      if (listaOficios) {
+        setOficios(listaOficios);
+        const oficioInicial =
+          Array.isArray(trabajador.oficio_ids) && trabajador.oficio_ids.length
+            ? trabajador.oficio_ids[0]
+            : trabajador.oficio_id;
+        setOficioPortafolio(oficioInicial || "");
+      }
       
       // Carga de solicitudes y portafolio
       await cargarDatos(session.user.id);
@@ -211,13 +226,24 @@ const [resenas, setResenas] = useState([]);
         data: { publicUrl },
       } = supabase.storage.from("fotos_trabajos").getPublicUrl(filePath);
 
-      const { error: dbError } = await supabase.from("portafolios").insert({
+      const payloadPortafolio = {
         trabajador_id: perfil.id,
         imagen_url: publicUrl,
         descripcion: descripcionFoto,
-      });
+        oficio_id: oficioPortafolio || perfil.oficio_id,
+      };
 
-      if (dbError) throw dbError;
+      const { error: dbError } = await supabase.from("portafolios").insert(payloadPortafolio);
+
+      if (dbError) {
+        console.warn("Fallback a esquema anterior de portafolios:", dbError);
+        const { error: fallbackError } = await supabase.from("portafolios").insert({
+          trabajador_id: perfil.id,
+          imagen_url: publicUrl,
+          descripcion: descripcionFoto,
+        });
+        if (fallbackError) throw fallbackError;
+      }
 
       setArchivo(null);
       setDescripcionFoto("");
@@ -243,6 +269,11 @@ const [resenas, setResenas] = useState([]);
     toast.success("Foto eliminada");
     cargarDatos(perfil.id);
   };
+
+  const nombreOficio = (id) =>
+    oficios.find((oficio) => String(oficio.id) === String(id))?.nombre ||
+    perfil?.oficios?.nombre ||
+    "Oficio general";
 
   if (loading)
     return (
@@ -383,6 +414,11 @@ const [resenas, setResenas] = useState([]);
                               <p className="text-sm text-slate-800 font-semibold">
                                 {sol.servicio_detalle}
                               </p>
+                              {sol.oficio_id && (
+                                <Badge className="mt-2 bg-[#14A5B8]/10 text-[#0f8494] border-0">
+                                  {nombreOficio(sol.oficio_id)}
+                                </Badge>
+                              )}
                             </div>
                             <div>
                               <p className="text-[10px] text-slate-400 uppercase font-black mb-1">
@@ -394,6 +430,19 @@ const [resenas, setResenas] = useState([]);
                               </p>
                             </div>
                           </div>
+
+                          {sol.cita_presupuesto && (
+                            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mt-4 text-sm text-blue-900">
+                              <p className="font-black flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                Cita para revisar presupuesto
+                              </p>
+                              <p className="mt-1">
+                                {new Date(sol.cita_presupuesto).toLocaleString()} ·{" "}
+                                {sol.modalidad_cita || "Modalidad por definir"}
+                              </p>
+                            </div>
+                          )}
 
                           {/* LÓGICA DE ESTADOS DEL TRABAJADOR */}
 <div className="mt-6 border-t border-slate-100 pt-4">
@@ -462,6 +511,28 @@ const [resenas, setResenas] = useState([]);
                     accept="image/*"
                     onChange={(e) => setArchivo(e.target.files[0])}
                   />
+                  <select
+                    value={oficioPortafolio}
+                    onChange={(e) => setOficioPortafolio(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm"
+                  >
+                    <option value="">Portafolio general</option>
+                    {oficios
+                      .filter((oficio) => {
+                        const ids =
+                          Array.isArray(perfil?.oficio_ids) && perfil.oficio_ids.length
+                            ? perfil.oficio_ids.map(String)
+                            : perfil?.oficio_id
+                              ? [String(perfil.oficio_id)]
+                              : [];
+                        return ids.length === 0 || ids.includes(String(oficio.id));
+                      })
+                      .map((oficio) => (
+                        <option key={oficio.id} value={oficio.id}>
+                          {oficio.nombre}
+                        </option>
+                      ))}
+                  </select>
                   <Input
                     placeholder="Descripción"
                     value={descripcionFoto}
@@ -491,6 +562,9 @@ const [resenas, setResenas] = useState([]);
                       className="w-full h-full object-cover"
                       alt="Trabajo"
                     />
+                    <span className="absolute left-2 bottom-2 max-w-[calc(100%-1rem)] truncate rounded-lg bg-black/70 px-2 py-1 text-[10px] font-bold text-white">
+                      {foto.oficio_id ? nombreOficio(foto.oficio_id) : "General"}
+                    </span>
                     <button
                       onClick={() => eliminarFoto(foto.id, foto.imagen_url)}
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-500 text-white p-1.5 rounded-lg shadow-md transition-opacity"
@@ -541,6 +615,18 @@ const [resenas, setResenas] = useState([]);
                       <p className="text-slate-600 text-sm italic bg-slate-50 p-3 rounded-xl border border-slate-100">
                         {r.comentario || "El cliente te calificó con estrellas pero no dejó un comentario escrito."}
                       </p>
+                      {Array.isArray(r.imagenes) && r.imagenes.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          {r.imagenes.map((url) => (
+                            <img
+                              key={url}
+                              src={url}
+                              alt="Foto de reseña"
+                              className="h-20 w-full rounded-lg object-cover bg-slate-100"
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </Card>
                 ))}
