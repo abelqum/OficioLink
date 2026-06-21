@@ -1,172 +1,345 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
+  Banknote,
+  CalendarClock,
+  CheckCircle2,
+  FileCheck2,
+  Hammer,
+  MapPin,
+  MessageSquare,
+  Paintbrush,
   Search,
   ShieldCheck,
+  Sparkles,
   Star,
+  Users,
   Wrench,
   Zap,
-  Droplet,
-  Paintbrush,
 } from "lucide-react";
-import Image from "next/image";
+
+const stats = [
+  { value: "1,200+", label: "servicios solicitados" },
+  { value: "98%", label: "clientes satisfechos" },
+  { value: "24h", label: "respuesta promedio" },
+];
+
+const features = [
+  {
+    icon: Search,
+    title: "Encuentra expertos sin perder contexto",
+    desc: "Filtra por oficio, zona, verificación y rango de precio antes de solicitar una cotización.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Perfiles profesionales más confiables",
+    desc: "Portafolio por oficio, identidad verificada, reseñas y fotos del trabajo terminado.",
+  },
+  {
+    icon: CalendarClock,
+    title: "Agenda antes de contratar",
+    desc: "Solicita una visita o llamada para revisar presupuesto sin cerrar el trabajo a ciegas.",
+  },
+];
+
+const categories = [
+  { icon: Zap, label: "Electricidad", tone: "bg-amber-100 text-amber-600" },
+  { icon: Wrench, label: "Plomería", tone: "bg-blue-100 text-blue-600" },
+  { icon: Hammer, label: "Carpintería", tone: "bg-violet-100 text-violet-600" },
+  { icon: Paintbrush, label: "Pintura", tone: "bg-rose-100 text-rose-600" },
+];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 selection:bg-[#14A5B8] selection:text-white">
-      {/* NAVBAR PÚBLICO */}
-      <nav className="fixed top-0 w-full bg-[#14A5B8] backdrop-blur-md z-50 border-b border-[#14A5B8] ">
-        <div className="max-w-7xl mx-auto px-12 h-20 flex items-center justify-between">
-          <Image
-            src="/logo-letras.png"
-            alt="Oficio Link"
-            width={150}
-            height={40}
-            className="h-full w-auto"
-          />
-          <div className="flex items-center gap-4">
+    <div className="brand-shell min-h-screen selection:bg-[#1E6FD9] selection:text-white">
+      <section className="brand-dark relative overflow-hidden px-5 pb-20 pt-5 text-white md:pb-28">
+        <nav className="glass-nav mx-auto flex h-16 max-w-7xl items-center justify-between rounded-2xl px-4 md:px-6">
+          <Link href="/" className="shrink-0 rounded-xl bg-white px-3 py-2">
+            <Image
+              src="/logo-letras.png"
+              alt="Oficio Link"
+              width={132}
+              height={38}
+              className="h-8 w-auto"
+              priority
+            />
+          </Link>
+
+          <div className="hidden items-center gap-2 md:flex">
+            <a
+              href="#producto"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Producto
+            </a>
+            <a
+              href="#como-funciona"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Cómo funciona
+            </a>
+            <a
+              href="#oficios"
+              className="rounded-xl px-4 py-2 text-sm font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              Oficios
+            </a>
+          </div>
+
+          <div className="flex items-center gap-2">
             <Link href="/login">
               <Button
-                variant="ghost"
-                className="font-bold text-slate-600 hover:text-[#14A5B8]"
-              >
-                Iniciar Sesión
-              </Button>
-            </Link>
-            <Link href="/registro">
-              <Button className="bg-[#14A5B8] hover:bg-[#0f8494] font-bold rounded-xl px-6">
-                Regístrate
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* HERO SECTION */}
-      <section className="pt-32 pb-20 px-6 md:pt-48 md:pb-32 overflow-hidden relative">
-        {/* Elementos decorativos de fondo */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-[500px] h-[500px] bg-[#14A5B8]/10 blur-[100px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-[400px] h-[400px] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 border border-slate-200 mb-8 text-sm font-bold text-slate-600">
-            <Star className="h-4 w-4 text-yellow-500 fill-current" /> La red de
-            oficios más confiable
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tight leading-tight mb-8">
-            Encuentra al <span className="text-[#14A5B8]">experto ideal</span>{" "}
-            para cualquier reparación.
-          </h1>
-          <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Conectamos a clientes que necesitan soluciones rápidas con
-            profesionales calificados, verificados y cerca de su ubicación.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/registro">
-              <Button className="w-full sm:w-auto bg-[#14A5B8] hover:bg-[#0f8494] text-white h-14 px-8 rounded-2xl font-bold text-lg shadow-lg shadow-[#14A5B8]/20 transition-all hover:scale-105">
-                Necesito un servicio
-              </Button>
-            </Link>
-            <Link href="/registro">
-              <Button
                 variant="outline"
-                className="w-full sm:w-auto bg-white border-2 border-slate-200 text-slate-700 hover:border-[#14A5B8] hover:text-[#14A5B8] h-14 px-8 rounded-2xl font-bold text-lg transition-all"
+                className="h-10 rounded-xl border-white/20 bg-white/10 px-4 text-sm font-bold text-white hover:bg-white/20 hover:text-white"
               >
-                Ofrecer mis servicios <ArrowRight className="ml-2 h-5 w-5" />
+                Iniciar sesión
               </Button>
             </Link>
+            <Link href="/registro" className="hidden sm:block">
+              <Button className="brand-gradient-button h-10 px-4 text-sm">
+                Crear cuenta
+              </Button>
+            </Link>
+          </div>
+        </nav>
+
+        <div className="relative z-10 mx-auto grid max-w-7xl gap-12 pb-4 pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:pt-24">
+          <div>
+            <div className="brand-eyebrow">
+              <Sparkles className="h-4 w-4" />
+              Servicios locales con decisiones claras
+            </div>
+            <h1 className="mt-7 max-w-3xl text-5xl font-black leading-[1.02] tracking-tight md:text-7xl">
+              Contrata expertos sin perder control del trabajo.
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/78 md:text-xl">
+              OficioLink une búsqueda, cotización, agenda, portafolio, reseñas y
+              seguimiento en una experiencia clara para clientes y prestadores.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link href="/registro">
+                <Button className="green-action-button h-12 px-6">
+                  Solicitar un servicio
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/registro">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl border-white/20 bg-white/10 px-6 font-bold text-white hover:bg-white/20 hover:text-white"
+                >
+                  Ofrecer mis servicios
+                </Button>
+              </Link>
+            </div>
+
+            <div className="mt-10 grid max-w-xl grid-cols-3 gap-3">
+              {stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur"
+                >
+                  <p className="text-2xl font-black">{stat.value}</p>
+                  <p className="mt-1 text-xs font-semibold text-white/70">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mock-panel p-4 text-slate-950 md:p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
+                  Solicitud activa
+                </p>
+                <h2 className="mt-1 text-xl font-black text-[#1E0A4E]">
+                  Reparación eléctrica
+                </h2>
+              </div>
+              <span className="mini-status bg-emerald-100 text-emerald-700">
+                cotizado
+              </span>
+            </div>
+
+            <div className="grid gap-3 py-5">
+              {[
+                ["10:00", "Visita para presupuesto", "Confirmado"],
+                ["14:30", "Cambio de contactos", "En proceso"],
+                ["18:00", "Foto y reseña final", "Pendiente"],
+              ].map(([time, title, state]) => (
+                <div
+                  key={title}
+                  className="flex items-center gap-4 rounded-2xl bg-[#FAFCFF] p-4"
+                >
+                  <div className="rounded-xl bg-[#EEF4FF] px-3 py-2 text-sm font-black text-[#1E6FD9]">
+                    {time}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-[#1E0A4E]">{title}</p>
+                    <p className="text-sm font-semibold text-slate-500">
+                      {state}
+                    </p>
+                  </div>
+                  <CheckCircle2 className="h-5 w-5 text-[#35C56A]" />
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-[#EEF4FF] p-4">
+                <Banknote className="h-5 w-5 text-[#1E6FD9]" />
+                <p className="mt-3 text-sm font-bold text-slate-500">
+                  Presupuesto
+                </p>
+                <p className="text-2xl font-black text-[#1E0A4E]">$850</p>
+              </div>
+              <div className="rounded-2xl bg-[#EAFBF1] p-4">
+                <MessageSquare className="h-5 w-5 text-[#35C56A]" />
+                <p className="mt-3 text-sm font-bold text-slate-500">
+                  Chat activo
+                </p>
+                <p className="text-2xl font-black text-[#1E0A4E]">3 msg</p>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-[#F3EEFF] p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#7A4FD6]">
+                verificación completa
+              </p>
+              <p className="mt-1 text-sm font-bold text-[#1E0A4E]">
+                Identidad, portafolio y reseñas visibles antes de contratar.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* SECCIÓN: ¿CÓMO FUNCIONA? */}
-      <section className="py-24 bg-white px-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
-              La forma inteligente de contratar
+      <section id="producto" className="px-5 py-20 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="light-eyebrow">Producto</div>
+            <h2 className="mt-5 text-3xl font-black text-[#1E0A4E] md:text-5xl">
+              Una plataforma para contratar con claridad, no solo una lista de
+              contactos.
             </h2>
-            <p className="text-slate-500 text-lg">
-              Un proceso transparente, seguro y sin complicaciones.
-            </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-12">
-            {[
-              {
-                icon: Search,
-                title: "1. Busca cerca de ti",
-                desc: "Usa nuestra geolocalización para encontrar expertos disponibles en tu misma zona.",
-              },
-              {
-                icon: ShieldCheck,
-                title: "2. Contrata seguro",
-                desc: "Revisa su portafolio, precios base y opiniones de otros clientes antes de decidir.",
-              },
-              {
-                icon: Star,
-                title: "3. Califica el trabajo",
-                desc: "Finaliza el servicio y deja tu reseña para ayudar a mantener la calidad de la comunidad.",
-              },
-            ].map((paso, i) => (
-              <div key={i} className="text-center group">
-                <div className="mx-auto w-20 h-20 bg-slate-50 border-2 border-slate-100 rounded-[2rem] flex items-center justify-center mb-6 group-hover:bg-[#14A5B8]/10 group-hover:border-[#14A5B8]/30 transition-all duration-300 group-hover:scale-110">
-                  <paso.icon className="h-8 w-8 text-[#14A5B8]" />
+          <div className="mt-14 grid gap-5 md:grid-cols-3">
+            {features.map((feature) => (
+              <div key={feature.title} className="premium-card p-7">
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#EEF4FF] text-[#1E6FD9]">
+                  <feature.icon className="h-7 w-7" />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">
-                  {paso.title}
+                <h3 className="text-xl font-black text-[#1E0A4E]">
+                  {feature.title}
                 </h3>
-                <p className="text-slate-500 leading-relaxed">{paso.desc}</p>
+                <p className="mt-3 leading-7 text-slate-600">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* SECCIÓN: CATEGORÍAS POPULARES */}
-      <section className="py-24 bg-slate-50 px-6">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-extrabold text-slate-900 mb-10 text-center">
-            Servicios más solicitados
-          </h2>
+      <section
+        id="como-funciona"
+        className="brand-dark mx-5 rounded-[28px] px-6 py-16 text-white md:mx-8 md:px-10 md:py-20"
+      >
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+          <div>
+            <div className="brand-eyebrow">En acción</div>
+            <h2 className="mt-5 text-3xl font-black md:text-5xl">
+              Del primer filtro al trabajo terminado.
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-white/75">
+              La experiencia muestra lo que importa en cada paso: cobertura,
+              cotización, cita, estado, pago y evidencia del trabajo final.
+            </p>
+            <div className="mt-8 grid gap-3">
+              {[
+                "Filtros por oficio, precio y zona",
+                "Cita para revisar presupuesto",
+                "Portafolio separado por oficio",
+                "Reseñas con fotos del trabajo terminado",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-[#35C56A]" />
+                  <span className="font-bold text-white/85">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              {
-                icon: Zap,
-                nombre: "Electricidad",
-                color: "text-amber-500",
-                bg: "bg-amber-100",
-              },
-              {
-                icon: Droplet,
-                nombre: "Plomería",
-                color: "text-blue-500",
-                bg: "bg-blue-100",
-              },
-              {
-                icon: Wrench,
-                nombre: "Mecánica",
-                color: "text-slate-700",
-                bg: "bg-slate-200",
-              },
-              {
-                icon: Paintbrush,
-                nombre: "Pintura",
-                color: "text-rose-500",
-                bg: "bg-rose-100",
-              },
-            ].map((cat, i) => (
-              <Link href="/registro" key={i}>
-                <div className="bg-white p-6 rounded-3xl border border-slate-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 text-center cursor-pointer group">
+          <div className="grid gap-4 rounded-[26px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+            <div className="grid gap-4 md:grid-cols-2">
+              <MiniCard
+                icon={MapPin}
+                label="Cobertura"
+                title="Norte, Centro y Poniente"
+                tone="bg-[#EEF4FF] text-[#1E6FD9]"
+              />
+              <MiniCard
+                icon={Users}
+                label="Prestador"
+                title="Identidad verificada"
+                tone="bg-[#EAFBF1] text-[#35C56A]"
+              />
+              <MiniCard
+                icon={FileCheck2}
+                label="Portafolio"
+                title="12 fotos por oficio"
+                tone="bg-[#F3EEFF] text-[#7A4FD6]"
+              />
+              <MiniCard
+                icon={Star}
+                label="Reseñas"
+                title="4.9 promedio"
+                tone="bg-amber-100 text-amber-600"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="oficios" className="px-5 py-20 md:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div>
+              <div className="light-eyebrow">Oficios</div>
+              <h2 className="mt-5 text-3xl font-black text-[#1E0A4E] md:text-5xl">
+                Servicios listos para contratar.
+              </h2>
+            </div>
+            <Link href="/registro">
+              <Button className="brand-gradient-button h-12 px-6">
+                Crear solicitud
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {categories.map((cat) => (
+              <Link href="/registro" key={cat.label}>
+                <div className="premium-card group p-6">
                   <div
-                    className={`mx-auto w-14 h-14 ${cat.bg} rounded-full flex items-center justify-center mb-4 transition-transform group-hover:scale-110`}
+                    className={`mb-8 flex h-14 w-14 items-center justify-center rounded-2xl ${cat.tone}`}
                   >
-                    <cat.icon className={`h-6 w-6 ${cat.color}`} />
+                    <cat.icon className="h-7 w-7" />
                   </div>
-                  <h3 className="font-bold text-slate-900">{cat.nombre}</h3>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                    Servicio
+                  </p>
+                  <h3 className="mt-2 text-xl font-black text-[#1E0A4E]">
+                    {cat.label}
+                  </h3>
+                  <p className="mt-4 text-sm font-bold text-[#1E6FD9]">
+                    Ver expertos →
+                  </p>
                 </div>
               </Link>
             ))}
@@ -174,33 +347,55 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA FINAL & FOOTER */}
-      <section className="py-24 bg-slate-900 px-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-24 opacity-5 pointer-events-none">
-          <Wrench className="w-96 h-96 text-white" />
-        </div>
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6">
-            ¿Eres un experto en tu oficio?
-          </h2>
-          <p className="text-slate-400 text-lg mb-10 max-w-2xl mx-auto">
-            Únete a cientos de profesionales que ya están consiguiendo más
-            clientes y digitalizando su negocio con Oficio Link.
-          </p>
-          <Link href="/registro">
-            <Button className="bg-[#14A5B8] hover:bg-[#0f8494] text-white h-14 px-10 rounded-2xl font-bold text-lg shadow-xl shadow-[#14A5B8]/20">
-              Crear mi perfil profesional gratis
-            </Button>
-          </Link>
+      <section className="px-5 pb-8">
+        <div className="brand-dark mx-auto max-w-7xl rounded-[28px] px-6 py-16 text-center text-white md:px-10">
+          <div className="mx-auto max-w-3xl">
+            <div className="brand-eyebrow">Comienza hoy</div>
+            <h2 className="mt-5 text-3xl font-black md:text-5xl">
+              Construye confianza desde el primer contacto.
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-white/75">
+              Clientes ven mejores señales para decidir. Prestadores muestran su
+              trabajo con una presencia más profesional.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link href="/registro">
+                <Button className="green-action-button h-12 px-6">
+                  Crear cuenta gratis
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button
+                  variant="outline"
+                  className="h-12 rounded-xl border-white/20 bg-white/10 px-6 font-bold text-white hover:bg-white/20 hover:text-white"
+                >
+                  Ya tengo cuenta
+                </Button>
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      <footer className="bg-slate-950 py-8 text-center border-t border-slate-800">
-        <p className="text-slate-500 text-sm">
-          © {new Date().getFullYear()} Oficio Link. Todos los derechos
-          reservados.
+      <footer className="px-5 py-8 text-center">
+        <p className="text-sm font-semibold text-slate-500">
+          © {new Date().getFullYear()} Oficio Link. Hecho para contratar mejor.
         </p>
       </footer>
+    </div>
+  );
+}
+
+function MiniCard({ icon: Icon, label, title, tone }) {
+  return (
+    <div className="rounded-2xl bg-white p-5 text-slate-950 shadow-[0_18px_44px_rgba(9,5,28,0.28)]">
+      <div className={`mb-6 flex h-11 w-11 items-center justify-center rounded-xl ${tone}`}>
+        <Icon className="h-5 w-5" />
+      </div>
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-black text-[#1E0A4E]">{title}</p>
     </div>
   );
 }

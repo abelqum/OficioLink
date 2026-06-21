@@ -33,7 +33,7 @@ export default function Sidebar({ rol }) {
   const menu = rol === "cliente" ? menuCliente : menuTrabajador;
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-slate-950 text-white border-r border-slate-800 h-screen fixed left-0 top-0 z-40 shadow-2xl">
+    <aside className="brand-dark hidden md:flex flex-col w-64 text-white border-r border-white/10 h-screen fixed left-0 top-0 z-40 shadow-2xl">
       {/* Sección del Logo */}
       <div className="h-20 flex items-center px-6 border-b border-white/10">
         <div className="rounded-2xl bg-white px-3 py-2 shadow-lg shadow-black/20">
@@ -63,7 +63,7 @@ export default function Sidebar({ rol }) {
               href={item.ruta}
               className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all font-semibold text-sm ${
                 activo
-                  ? "bg-[#14A5B8] text-white shadow-lg shadow-[#14A5B8]/20"
+                  ? "bg-gradient-to-r from-[#1E6FD9] to-[#7A4FD6] text-white shadow-lg shadow-[#1E6FD9]/25"
                   : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -79,7 +79,7 @@ export default function Sidebar({ rol }) {
       {/* Footer del Sidebar (Botón de salir) */}
       <div className="p-4 border-t border-white/10 bg-white/[0.03]">
         <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-          <p className="text-xs font-black uppercase tracking-widest text-cyan-200/70">
+          <p className="text-xs font-black uppercase tracking-widest text-white/60">
             OficioLink
           </p>
           <p className="mt-1 text-sm text-slate-300">

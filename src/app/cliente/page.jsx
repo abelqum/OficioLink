@@ -267,7 +267,7 @@ export default function ClienteDashboard() {
   if (cargandoDatos)
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin h-10 w-10 text-[#14A5B8]" />
+        <Loader2 className="animate-spin h-10 w-10 text-[#1E6FD9]" />
       </div>
     );
 
@@ -320,7 +320,7 @@ export default function ClienteDashboard() {
                   onClick={obtenerMiUbicacion}
                   className="h-12 px-6 rounded-xl bg-white text-slate-950 hover:bg-cyan-50 font-black shadow-lg shadow-slate-950/20"
                 >
-                  <MapPin className="mr-2 h-5 w-5 text-[#14A5B8]" />
+                  <MapPin className="mr-2 h-5 w-5 text-[#1E6FD9]" />
                   Usar mi ubicación
                 </Button>
               </div>
@@ -331,7 +331,7 @@ export default function ClienteDashboard() {
             <TabsList className="surface-card grid w-full max-w-md grid-cols-2 mb-8 p-1">
               <TabsTrigger
                 value="buscar"
-                className="rounded-xl data-[state=active]:bg-[#14A5B8] data-[state=active]:text-white transition-all"
+                className="rounded-xl data-[state=active]:bg-[#1E6FD9] data-[state=active]:text-white transition-all"
               >
                 Buscar Expertos
               </TabsTrigger>
@@ -349,8 +349,8 @@ export default function ClienteDashboard() {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
                       <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#14A5B8]/10">
-                          <Filter className="h-5 w-5 text-[#14A5B8]" />
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1E6FD9]/10">
+                          <Filter className="h-5 w-5 text-[#1E6FD9]" />
                         </span>
                         Filtros de búsqueda
                       </h2>
@@ -495,7 +495,7 @@ export default function ClienteDashboard() {
                               {nombresOficios.map((nombre) => (
                                 <Badge
                                   key={nombre}
-                                  className="bg-[#14A5B8]/10 text-[#0f8494] border-0"
+                                  className="bg-[#1E6FD9]/10 text-[#1557b7] border-0"
                                 >
                                   {nombre}
                                 </Badge>
@@ -523,7 +523,7 @@ export default function ClienteDashboard() {
                         </div>
                         <div className="soft-divider p-4 bg-slate-50/80">
                           <Link href={`/perfil/${trabajador.id}`}>
-                            <Button className="w-full bg-slate-900 hover:bg-[#14A5B8] text-white h-11 rounded-xl">
+                            <Button className="w-full bg-slate-900 hover:bg-[#1E6FD9] text-white h-11 rounded-xl">
                               Ver perfil y agendar
                             </Button>
                           </Link>
@@ -573,7 +573,7 @@ export default function ClienteDashboard() {
                               : item.estado === "cotizado"
                                 ? "bg-purple-500"
                                 : item.estado === "en_proceso"
-                                  ? "bg-[#14A5B8]"
+                                  ? "bg-[#1E6FD9]"
                                   : item.estado === "rechazado"
                                     ? "bg-red-500"
                                     : "bg-green-500"
@@ -595,7 +595,7 @@ export default function ClienteDashboard() {
                             </p>
                             {item.cita_presupuesto && (
                               <p className="text-sm text-slate-600 flex items-center gap-2">
-                                <CalendarClock className="h-4 w-4 text-[#14A5B8]" />
+                                <CalendarClock className="h-4 w-4 text-[#1E6FD9]" />
                                 Cita para presupuesto:{" "}
                                 {new Date(item.cita_presupuesto).toLocaleString()} (
                                 {item.modalidad_cita || "por definir"})
@@ -632,8 +632,8 @@ export default function ClienteDashboard() {
                       </div>
 
                       {item.estado === "cotizado" && (
-                        <div className="bg-[#14A5B8]/5 border-t border-[#14A5B8]/20 p-6 md:pl-9">
-                          <p className="font-black text-[#14A5B8] text-xl mb-1">
+                        <div className="bg-[#1E6FD9]/5 border-t border-[#1E6FD9]/20 p-6 md:pl-9">
+                          <p className="font-black text-[#1E6FD9] text-xl mb-1">
                             El experto propone: ${item.precio_acordado} MXN
                           </p>
                           <p className="text-sm text-slate-600 mb-5">
@@ -642,7 +642,7 @@ export default function ClienteDashboard() {
                           <div className="flex flex-col sm:flex-row gap-3">
                             <Button
                               onClick={() => responderCotizacion(item.id, "en_proceso")}
-                              className="bg-[#14A5B8] hover:bg-[#0f8494] text-white font-bold h-12 rounded-xl px-8 shadow-md"
+                              className="bg-[#1E6FD9] hover:bg-[#1557b7] text-white font-bold h-12 rounded-xl px-8 shadow-md"
                             >
                               <CheckCircle2 className="h-4 w-4 mr-2" />
                               Aceptar y Contratar
