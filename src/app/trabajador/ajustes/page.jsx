@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/ui/Sidebar";
 import BotonEliminar from "@/components/ui/BotonEliminar";
+import { verificarIdentidadLocal } from "@/lib/identityVerification";
 import { toast } from "sonner";
 
 const zonasSugeridas = [
@@ -42,6 +43,8 @@ export default function AjustesTrabajador() {
   const [zonaManual, setZonaManual] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [identidadFile, setIdentidadFile] = useState(null);
+  const [selfieFile, setSelfieFile] = useState(null);
+  const [resultadoVerificacion, setResultadoVerificacion] = useState(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -132,12 +135,25 @@ export default function AjustesTrabajador() {
     const formData = new FormData(e.target);
 
     try {
+      setResultadoVerificacion(null);
       const avatarUrl = await subirArchivo("avatares", avatarFile, perfil.id, "perfil");
+      const resultadoIdentidad = await verificarIdentidadLocal(
+        identidadFile,
+        selfieFile,
+      );
+      setResultadoVerificacion(resultadoIdentidad);
+
       const identidadUrl = await subirArchivo(
         "verificaciones_identidad",
         identidadFile,
         perfil.id,
         "identidad",
+      );
+      const selfieUrl = await subirArchivo(
+        "verificaciones_identidad",
+        selfieFile,
+        perfil.id,
+        "selfie",
       );
 
       const payload = {
@@ -148,8 +164,19 @@ export default function AjustesTrabajador() {
         oficio_ids: oficiosSeleccionados,
         zonas_cobertura: zonasCobertura,
         ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-        ...(identidadUrl
-          ? { identidad_url: identidadUrl, verificacion_estado: "pendiente" }
+        ...(identidadUrl || selfieUrl || resultadoIdentidad
+          ? {
+              ...(identidadUrl ? { identidad_url: identidadUrl } : {}),
+              ...(selfieUrl ? { identidad_selfie_url: selfieUrl } : {}),
+              verificacion_estado: resultadoIdentidad?.estado || "pendiente",
+              verificacion_score: resultadoIdentidad?.score ?? null,
+              verificacion_metodo:
+                resultadoIdentidad?.metodo || "comparacion_facial_local",
+              verificacion_mensaje:
+                resultadoIdentidad?.mensaje ||
+                "Documentos recibidos para revisión de identidad.",
+              verificacion_actualizada_en: new Date().toISOString(),
+            }
           : {}),
       };
 
@@ -186,6 +213,7 @@ export default function AjustesTrabajador() {
 
       setAvatarFile(null);
       setIdentidadFile(null);
+      setSelfieFile(null);
     } catch (error) {
       console.error(error);
       toast.error("Error al actualizar perfil: " + error.message);
@@ -220,6 +248,12 @@ export default function AjustesTrabajador() {
             <span className="text-[#14A5B8]">
               {perfil?.verificacion_estado || "sin_enviar"}
             </span>
+            {perfil?.verificacion_score !== null &&
+              perfil?.verificacion_score !== undefined && (
+                <span className="ml-2 text-slate-400">
+                  ({Math.round(Number(perfil.verificacion_score))}%)
+                </span>
+              )}
           </div>
         </div>
 
@@ -370,15 +404,47 @@ export default function AjustesTrabajador() {
                 identidad
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              <p className="text-sm text-slate-500">
-                Sube una identificación oficial. El estado quedará pendiente para revisión.
-              </p>
-              <Input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
-              />
+            <CardContent className="p-6 space-y-4">
+              <HelpBox>
+                Sube una foto clara de tu INE o identificación y una selfie
+                tomada de frente. El sistema compara los rostros automáticamente
+                cuando ambas imágenes son compatibles.
+              </HelpBox>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>INE o identificación oficial</Label>
+                  <Input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Para comparar rostros automáticamente, usa foto en lugar de PDF.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Selfie de verificación</Label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSelfieFile(e.target.files?.[0] || null)}
+                  />
+                  <p className="text-xs text-slate-500">
+                    Rostro de frente, buena luz y sin lentes oscuros.
+                  </p>
+                </div>
+              </div>
+              {(resultadoVerificacion || perfil?.verificacion_mensaje) && (
+                <VerificationResult
+                  result={
+                    resultadoVerificacion || {
+                      estado: perfil?.verificacion_estado,
+                      score: perfil?.verificacion_score,
+                      mensaje: perfil?.verificacion_mensaje,
+                    }
+                  }
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -435,6 +501,29 @@ function HelpBox({ children }) {
     <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
       <HelpCircle className="h-5 w-5 shrink-0" />
       <p>{children}</p>
+    </div>
+  );
+}
+
+function VerificationResult({ result }) {
+  if (!result?.mensaje) return null;
+
+  const styles =
+    result.estado === "verificado"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : result.estado === "rechazado"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-2xl border p-4 text-sm ${styles}`}>
+      <p className="font-black">
+        Resultado: {result.estado || "pendiente"}
+        {result.score !== null && result.score !== undefined
+          ? ` · similitud ${Math.round(Number(result.score))}%`
+          : ""}
+      </p>
+      <p className="mt-1">{result.mensaje}</p>
     </div>
   );
 }

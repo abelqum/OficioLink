@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
+import { verificarIdentidadLocal } from "@/lib/identityVerification";
 
 const zonasSugeridas = [
   "Centro",
@@ -45,6 +46,8 @@ export default function RegistroPage() {
   const [zonaManual, setZonaManual] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [identidadFile, setIdentidadFile] = useState(null);
+  const [selfieFile, setSelfieFile] = useState(null);
+  const [resultadoVerificacion, setResultadoVerificacion] = useState(null);
   const [location, setLocation] = useState({ lat: null, lng: null, name: "" });
   const [direccion, setDireccion] = useState({
     calle: "",
@@ -233,6 +236,19 @@ export default function RegistroPage() {
       return;
     }
 
+    if (
+      tipo === "trabajador" &&
+      ((identidadFile && !selfieFile) || (!identidadFile && selfieFile))
+    ) {
+      const mensaje =
+        "Para verificar automáticamente, sube identificación y selfie. Si no las tienes ahora, deja ambos campos vacíos.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      return;
+    }
+
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.get("email"),
       password,
@@ -279,6 +295,14 @@ export default function RegistroPage() {
     }
 
     try {
+      setResultadoVerificacion(null);
+      setEstadoRegistro("Comparando identificación y selfie, si las agregaste...");
+      const resultadoIdentidad = await verificarIdentidadLocal(
+        identidadFile,
+        selfieFile,
+      );
+      setResultadoVerificacion(resultadoIdentidad);
+
       setEstadoRegistro("Subiendo foto y documentos, si los agregaste...");
       const avatarUrl = await subirArchivo("avatares", avatarFile, userId, "perfil");
       const identidadUrl = await subirArchivo(
@@ -286,6 +310,12 @@ export default function RegistroPage() {
         identidadFile,
         userId,
         "identidad",
+      );
+      const selfieUrl = await subirArchivo(
+        "verificaciones_identidad",
+        selfieFile,
+        userId,
+        "selfie",
       );
       const zonasFinales = zonasCobertura.length ? zonasCobertura : [location.name];
       const payloadCompleto = {
@@ -300,7 +330,14 @@ export default function RegistroPage() {
         zonas_cobertura: zonasFinales.filter(Boolean),
         avatar_url: avatarUrl,
         identidad_url: identidadUrl,
-        verificacion_estado: identidadUrl ? "pendiente" : "sin_enviar",
+        identidad_selfie_url: selfieUrl,
+        verificacion_estado: resultadoIdentidad?.estado || "sin_enviar",
+        verificacion_score: resultadoIdentidad?.score ?? null,
+        verificacion_metodo: resultadoIdentidad?.metodo || null,
+        verificacion_mensaje: resultadoIdentidad?.mensaje || null,
+        verificacion_actualizada_en: resultadoIdentidad
+          ? new Date().toISOString()
+          : null,
       };
 
       setEstadoRegistro("Guardando tu perfil profesional...");
@@ -579,15 +616,35 @@ export default function RegistroPage() {
                     <div className="space-y-2">
                       <Label className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-blue-500" />
-                        Identificación para verificar
+                        INE o identificación
                       </Label>
                       <Input
                         type="file"
                         accept="image/*,.pdf"
                         onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
                       />
+                      <p className="text-xs text-slate-500">
+                        Usa imagen para activar comparación automática.
+                      </p>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label className="flex items-center gap-2">
+                        <ShieldCheck className="h-4 w-4 text-blue-500" />
+                        Selfie para comparar rostro
+                      </Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setSelfieFile(e.target.files?.[0] || null)}
+                      />
+                      <p className="text-xs text-slate-500">
+                        Rostro de frente, buena iluminación y sin lentes oscuros.
+                      </p>
                     </div>
                   </div>
+                  {resultadoVerificacion && (
+                    <VerificationResult result={resultadoVerificacion} />
+                  )}
                 </div>
 
                 <EstadoFormulario
@@ -648,6 +705,27 @@ function EstadoFormulario({ loading, estado, error }) {
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
       )}
       <span>{error || estado}</span>
+    </div>
+  );
+}
+
+function VerificationResult({ result }) {
+  const styles =
+    result.estado === "verificado"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : result.estado === "rechazado"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-2xl border p-4 text-sm ${styles}`}>
+      <p className="font-black">
+        Resultado automático: {result.estado}
+        {result.score !== null && result.score !== undefined
+          ? ` · similitud ${Math.round(Number(result.score))}%`
+          : ""}
+      </p>
+      <p className="mt-1">{result.mensaje}</p>
     </div>
   );
 }
