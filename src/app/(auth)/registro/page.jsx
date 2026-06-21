@@ -810,7 +810,7 @@ function CamposBasicos({
         <Input
           name="telefono"
           type="tel"
-          placeholder="Ej. 811 234 5678"
+          placeholder="Ej. 55 5555 5555"
           autoComplete="tel"
           disabled={disabled}
           required
