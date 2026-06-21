@@ -13,10 +13,13 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  EyeOff,
   Filter,
   HardHat,
+  HelpCircle,
   Loader2,
   MapPin,
+  RotateCcw,
   Search,
   ShieldCheck,
 } from "lucide-react";
@@ -85,6 +88,10 @@ export default function ClienteDashboard() {
   const [soloVerificados, setSoloVerificados] = useState(false);
   const [zonaFiltro, setZonaFiltro] = useState("");
   const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [usuarioActual, setUsuarioActual] = useState(null);
+  const [historialOculto, setHistorialOculto] = useState([]);
+  const [mostrarOcultos, setMostrarOcultos] = useState(false);
+  const [limiteFinalizados, setLimiteFinalizados] = useState(5);
 
   const responderCotizacion = async (id, nuevoEstado) => {
     const { error } = await supabase
@@ -143,6 +150,11 @@ export default function ClienteDashboard() {
       } = await supabase.auth.getSession();
       if (!session) return router.push("/login");
 
+      setUsuarioActual(session.user);
+      const ocultosGuardados = window.localStorage.getItem(
+        `oficiolink.historialOculto.${session.user.id}`,
+      );
+      setHistorialOculto(ocultosGuardados ? JSON.parse(ocultosGuardados) : []);
       await cargarDatos(session.user);
 
       canalRealtime = supabase.channel(`cambios-${Date.now()}`);
@@ -216,6 +228,36 @@ export default function ClienteDashboard() {
     setZonaFiltro("");
   };
 
+  const guardarHistorialOculto = (ids) => {
+    setHistorialOculto(ids);
+    if (usuarioActual?.id) {
+      window.localStorage.setItem(
+        `oficiolink.historialOculto.${usuarioActual.id}`,
+        JSON.stringify(ids),
+      );
+    }
+  };
+
+  const ocultarServicio = (id) => {
+    const nuevosOcultos = Array.from(new Set([...historialOculto, id]));
+    guardarHistorialOculto(nuevosOcultos);
+    toast.success("Servicio ocultado de esta vista.");
+  };
+
+  const ocultarFinalizados = () => {
+    const idsFinalizados = historial
+      .filter((item) => ["completado", "rechazado"].includes(item.estado))
+      .map((item) => item.id);
+    guardarHistorialOculto(Array.from(new Set([...historialOculto, ...idsFinalizados])));
+    toast.success("Historial finalizado ocultado de esta vista.");
+  };
+
+  const restaurarHistorial = () => {
+    guardarHistorialOculto([]);
+    setMostrarOcultos(false);
+    toast.success("Historial visible de nuevo.");
+  };
+
   const trabajadoresFiltrados = useMemo(() => {
     return trabajadores.filter((trabajador) => {
       const nombresOficios = getOficioNombres(trabajador, oficios);
@@ -263,6 +305,17 @@ export default function ClienteDashboard() {
     trabajadores,
     zonaFiltro,
   ]);
+
+  const historialVisible = mostrarOcultos
+    ? historial
+    : historial.filter((item) => !historialOculto.includes(item.id));
+  const historialActivo = historialVisible.filter((item) =>
+    ["pendiente", "cotizado", "en_proceso"].includes(item.estado),
+  );
+  const historialFinalizado = historialVisible.filter((item) =>
+    ["completado", "rechazado"].includes(item.estado),
+  );
+  const finalizadosMostrados = historialFinalizado.slice(0, limiteFinalizados);
 
   if (cargandoDatos)
     return (
@@ -536,7 +589,7 @@ export default function ClienteDashboard() {
             </TabsContent>
 
             <TabsContent value="historial" className="space-y-6">
-              <div className="surface-card p-8 flex justify-between items-center">
+              <div className="surface-card p-8 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="text-3xl font-bold text-slate-900">
                     Tu Historial de Servicios
@@ -545,7 +598,39 @@ export default function ClienteDashboard() {
                     Revisa cotizaciones, citas y trabajos completados.
                   </p>
                 </div>
-                <HardHat className="h-12 w-12 text-slate-200 hidden sm:block" />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={ocultarFinalizados}
+                    disabled={historialFinalizado.length === 0}
+                    className="rounded-xl border-slate-200 text-slate-700"
+                  >
+                    <EyeOff className="h-4 w-4 mr-2" />
+                    Ocultar finalizados
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMostrarOcultos((actual) => !actual)}
+                    disabled={historialOculto.length === 0}
+                    className="rounded-xl border-slate-200 text-slate-700"
+                  >
+                    <HardHat className="h-4 w-4 mr-2" />
+                    {mostrarOcultos ? "Ver vista limpia" : "Ver ocultos"}
+                  </Button>
+                  {historialOculto.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={restaurarHistorial}
+                      className="rounded-xl border-slate-200 text-slate-700"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Restaurar
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {historial.length === 0 ? (
@@ -559,106 +644,101 @@ export default function ClienteDashboard() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-4">
-                  {historial.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="expert-card overflow-hidden flex flex-col"
-                    >
-                      <div className="flex flex-col md:flex-row">
-                        <div
-                          className={`w-full md:w-3 h-2 md:h-auto ${
-                            item.estado === "pendiente"
-                              ? "bg-amber-400"
-                              : item.estado === "cotizado"
-                                ? "bg-purple-500"
-                                : item.estado === "en_proceso"
-                                  ? "bg-[#14A5B8]"
-                                  : item.estado === "rechazado"
-                                    ? "bg-red-500"
-                                    : "bg-green-500"
-                          }`}
-                        />
+                <div className="space-y-8">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm text-blue-900 flex gap-3">
+                    <HelpCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                    <p>
+                      Los servicios activos quedan arriba para que no pierdas una
+                      cotización o cita pendiente. Ocultar historial solo limpia
+                      esta vista en tu navegador; no cancela trabajos ni borra
+                      registros de la cuenta.
+                    </p>
+                  </div>
 
-                        <div className="flex-1 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                          <div className="space-y-3">
-                            <h3 className="text-xl font-bold text-slate-900">
-                              Experto:{" "}
-                              {item.trabajadores?.nombre_completo || "Desconocido"}
-                            </h3>
-                            <Badge variant="outline" className="text-slate-500 border-slate-200">
-                              {getOficioNombres(item.trabajadores || {}, oficios).join(", ")}
-                            </Badge>
-                            <p className="text-sm text-slate-500">
-                              <span className="font-bold">Detalle:</span>{" "}
-                              {item.servicio_detalle}
-                            </p>
-                            {item.cita_presupuesto && (
-                              <p className="text-sm text-slate-600 flex items-center gap-2">
-                                <CalendarClock className="h-4 w-4 text-[#14A5B8]" />
-                                Cita para presupuesto:{" "}
-                                {new Date(item.cita_presupuesto).toLocaleString()} (
-                                {item.modalidad_cita || "por definir"})
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex flex-col items-start md:items-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
-                            <Badge
-                              className={`${
-                                item.estado === "pendiente"
-                                  ? "bg-amber-100 text-amber-800"
-                                  : item.estado === "cotizado"
-                                    ? "bg-purple-100 text-purple-800"
-                                    : item.estado === "en_proceso"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : item.estado === "rechazado"
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-green-100 text-green-800"
-                              } uppercase tracking-wider px-4 py-2 text-xs font-bold border-0`}
-                            >
-                              {item.estado.replace("_", " ")}
-                            </Badge>
-
-                            <p className="text-sm text-slate-500 flex items-center gap-1">
-                              <Banknote className="h-4 w-4" /> Pago: {item.metodo_pago}
-                            </p>
-
-                            {item.estado === "completado" && (
-                              <ModalCalificar solicitud={item} />
-                            )}
-                          </div>
-                        </div>
+                  <section className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900">
+                          Servicios activos
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          Pendientes, cotizados o en proceso.
+                        </p>
                       </div>
+                      <Badge className="bg-slate-100 text-slate-700 border-0">
+                        {historialActivo.length}
+                      </Badge>
+                    </div>
 
-                      {item.estado === "cotizado" && (
-                        <div className="bg-[#14A5B8]/5 border-t border-[#14A5B8]/20 p-6 md:pl-9">
-                          <p className="font-black text-[#14A5B8] text-xl mb-1">
-                            El experto propone: ${item.precio_acordado} MXN
-                          </p>
-                          <p className="text-sm text-slate-600 mb-5">
-                            Acepta el presupuesto para iniciar el trabajo.
-                          </p>
-                          <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                              onClick={() => responderCotizacion(item.id, "en_proceso")}
-                              className="bg-[#14A5B8] hover:bg-[#0f8494] text-white font-bold h-12 rounded-xl px-8 shadow-md"
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Aceptar y Contratar
-                            </Button>
-                            <Button
-                              onClick={() => responderCotizacion(item.id, "rechazado")}
-                              variant="outline"
-                              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-12 rounded-xl px-8"
-                            >
-                              Rechazar Presupuesto
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </Card>
-                  ))}
+                    {historialActivo.length === 0 ? (
+                      <div className="surface-card border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                        No tienes servicios activos en este momento.
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {historialActivo.map((item) => (
+                          <HistorialCard
+                            key={item.id}
+                            item={item}
+                            oficios={oficios}
+                            onResponderCotizacion={responderCotizacion}
+                            onOcultar={ocultarServicio}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="space-y-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900">
+                          Finalizados y rechazados
+                        </h3>
+                        <p className="text-sm text-slate-500">
+                          Se muestran en bloques para que la página no crezca sin control.
+                        </p>
+                      </div>
+                      <Badge className="bg-slate-100 text-slate-700 border-0">
+                        {historialFinalizado.length}
+                      </Badge>
+                    </div>
+
+                    {historialFinalizado.length === 0 ? (
+                      <div className="surface-card border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                        {mostrarOcultos
+                          ? "No hay servicios finalizados en tu historial."
+                          : "No hay servicios finalizados visibles. Puedes restaurar los ocultos si quieres revisarlos."}
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {finalizadosMostrados.map((item) => (
+                          <HistorialCard
+                            key={item.id}
+                            item={item}
+                            oficios={oficios}
+                            onResponderCotizacion={responderCotizacion}
+                            onOcultar={ocultarServicio}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {historialFinalizado.length > limiteFinalizados && (
+                      <div className="flex justify-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() =>
+                            setLimiteFinalizados((actual) => actual + 5)
+                          }
+                          className="rounded-xl border-slate-200"
+                        >
+                          Ver 5 más
+                        </Button>
+                      </div>
+                    )}
+                  </section>
                 </div>
               )}
             </TabsContent>
@@ -666,5 +746,114 @@ export default function ClienteDashboard() {
         </main>
       </div>
     </div>
+  );
+}
+
+function HistorialCard({ item, oficios, onResponderCotizacion, onOcultar }) {
+  const puedeOcultarse = ["completado", "rechazado"].includes(item.estado);
+
+  return (
+    <Card className="expert-card overflow-hidden flex flex-col">
+      <div className="flex flex-col md:flex-row">
+        <div
+          className={`w-full md:w-3 h-2 md:h-auto ${
+            item.estado === "pendiente"
+              ? "bg-amber-400"
+              : item.estado === "cotizado"
+                ? "bg-purple-500"
+                : item.estado === "en_proceso"
+                  ? "bg-[#14A5B8]"
+                  : item.estado === "rechazado"
+                    ? "bg-red-500"
+                    : "bg-green-500"
+          }`}
+        />
+
+        <div className="flex-1 p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-3">
+            <h3 className="text-xl font-bold text-slate-900">
+              Experto: {item.trabajadores?.nombre_completo || "Desconocido"}
+            </h3>
+            <Badge variant="outline" className="text-slate-500 border-slate-200">
+              {getOficioNombres(item.trabajadores || {}, oficios).join(", ")}
+            </Badge>
+            <p className="text-sm text-slate-500">
+              <span className="font-bold">Detalle:</span> {item.servicio_detalle}
+            </p>
+            {item.cita_presupuesto && (
+              <p className="text-sm text-slate-600 flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-[#14A5B8]" />
+                Cita para presupuesto:{" "}
+                {new Date(item.cita_presupuesto).toLocaleString()} (
+                {item.modalidad_cita || "por definir"})
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col items-start md:items-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0">
+            <Badge
+              className={`${
+                item.estado === "pendiente"
+                  ? "bg-amber-100 text-amber-800"
+                  : item.estado === "cotizado"
+                    ? "bg-purple-100 text-purple-800"
+                    : item.estado === "en_proceso"
+                      ? "bg-blue-100 text-blue-800"
+                      : item.estado === "rechazado"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-green-100 text-green-800"
+              } uppercase tracking-wider px-4 py-2 text-xs font-bold border-0`}
+            >
+              {item.estado.replace("_", " ")}
+            </Badge>
+
+            <p className="text-sm text-slate-500 flex items-center gap-1">
+              <Banknote className="h-4 w-4" /> Pago: {item.metodo_pago}
+            </p>
+
+            {item.estado === "completado" && <ModalCalificar solicitud={item} />}
+
+            {puedeOcultarse && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => onOcultar(item.id)}
+                className="h-9 rounded-xl px-3 text-slate-500 hover:text-slate-900"
+              >
+                <EyeOff className="h-4 w-4 mr-2" />
+                Ocultar de esta vista
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {item.estado === "cotizado" && (
+        <div className="bg-[#14A5B8]/5 border-t border-[#14A5B8]/20 p-6 md:pl-9">
+          <p className="font-black text-[#14A5B8] text-xl mb-1">
+            El experto propone: ${item.precio_acordado} MXN
+          </p>
+          <p className="text-sm text-slate-600 mb-5">
+            Acepta el presupuesto para iniciar el trabajo.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => onResponderCotizacion(item.id, "en_proceso")}
+              className="bg-[#14A5B8] hover:bg-[#0f8494] text-white font-bold h-12 rounded-xl px-8 shadow-md"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Aceptar y Contratar
+            </Button>
+            <Button
+              onClick={() => onResponderCotizacion(item.id, "rechazado")}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold h-12 rounded-xl px-8"
+            >
+              Rechazar Presupuesto
+            </Button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

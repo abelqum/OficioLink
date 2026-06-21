@@ -20,7 +20,10 @@ import {
   ImageIcon,
   Upload,
   Trash2,
+  EyeOff,
+  HelpCircle,
   Menu, // <-- Agregué Menu para el móvil
+  RotateCcw,
 } from "lucide-react";
 import BotonSalir from "@/components/ui/BotonSalir";
 import BotonEliminar from "@/components/ui/BotonEliminar";
@@ -45,6 +48,9 @@ export default function TrabajadorDashboard() {
   const [archivo, setArchivo] = useState(null);
   const [descripcionFoto, setDescripcionFoto] = useState("");
   const [oficioPortafolio, setOficioPortafolio] = useState("");
+  const [solicitudesOcultas, setSolicitudesOcultas] = useState([]);
+  const [mostrarOcultas, setMostrarOcultas] = useState(false);
+  const [limiteFinalizadas, setLimiteFinalizadas] = useState(5);
 const [cotizaciones, setCotizaciones] = useState({}); // Guarda lo que escribe en el input
 // 2. Adentro de tu componente TrabajadorDashboard, junto a los otros estados:
 const [resenas, setResenas] = useState([]);
@@ -120,6 +126,11 @@ const [resenas, setResenas] = useState([]);
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) return router.push("/login");
+
+      const ocultasGuardadas = window.localStorage.getItem(
+        `oficiolink.trabajadorSolicitudesOcultas.${session.user.id}`,
+      );
+      setSolicitudesOcultas(ocultasGuardadas ? JSON.parse(ocultasGuardadas) : []);
 
       const { data: trabajador } = await supabase
         .from("trabajadores")
@@ -204,6 +215,51 @@ const [resenas, setResenas] = useState([]);
       toast.error("Error al actualizar el estado");
     }
   };
+
+  const guardarSolicitudesOcultas = (ids) => {
+    setSolicitudesOcultas(ids);
+    if (perfil?.id) {
+      window.localStorage.setItem(
+        `oficiolink.trabajadorSolicitudesOcultas.${perfil.id}`,
+        JSON.stringify(ids),
+      );
+    }
+  };
+
+  const ocultarSolicitud = (id) => {
+    guardarSolicitudesOcultas(Array.from(new Set([...solicitudesOcultas, id])));
+    toast.success("Solicitud ocultada de esta vista.");
+  };
+
+  const ocultarFinalizadas = () => {
+    const idsFinalizadas = solicitudes
+      .filter((sol) => ["completado", "rechazado"].includes(sol.estado))
+      .map((sol) => sol.id);
+    guardarSolicitudesOcultas(
+      Array.from(new Set([...solicitudesOcultas, ...idsFinalizadas])),
+    );
+    toast.success("Solicitudes finalizadas ocultadas.");
+  };
+
+  const restaurarSolicitudes = () => {
+    guardarSolicitudesOcultas([]);
+    setMostrarOcultas(false);
+    toast.success("Solicitudes visibles de nuevo.");
+  };
+
+  const solicitudesVisibles = mostrarOcultas
+    ? solicitudes
+    : solicitudes.filter((sol) => !solicitudesOcultas.includes(sol.id));
+  const solicitudesActivas = solicitudesVisibles.filter(
+    (sol) => !["completado", "rechazado"].includes(sol.estado),
+  );
+  const solicitudesFinalizadas = solicitudesVisibles.filter((sol) =>
+    ["completado", "rechazado"].includes(sol.estado),
+  );
+  const solicitudesEnVista = [
+    ...solicitudesActivas,
+    ...solicitudesFinalizadas.slice(0, limiteFinalizadas),
+  ];
 
   const subirFoto = async (e) => {
     e.preventDefault();
@@ -325,9 +381,57 @@ const [resenas, setResenas] = useState([]);
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Columna Izquierda: Tarjetas de Solicitudes (Tu código exacto) */}
             <div className="lg:col-span-2 space-y-6">
-              <h2 className="text-2xl font-bold text-slate-900">
-                Solicitudes Activas
-              </h2>
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">
+                      Solicitudes y trabajos
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                      Activos arriba, finalizados en bloques para mantener ordenada la vista.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={ocultarFinalizadas}
+                      disabled={solicitudesFinalizadas.length === 0}
+                      className="rounded-xl border-slate-200 text-slate-700"
+                    >
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Ocultar finalizadas
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setMostrarOcultas((actual) => !actual)}
+                      disabled={solicitudesOcultas.length === 0}
+                      className="rounded-xl border-slate-200 text-slate-700"
+                    >
+                      {mostrarOcultas ? "Vista limpia" : "Ver ocultas"}
+                    </Button>
+                    {solicitudesOcultas.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={restaurarSolicitudes}
+                        className="rounded-xl border-slate-200 text-slate-700"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                        Restaurar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4 text-sm text-blue-900 flex gap-3">
+                  <HelpCircle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <p>
+                    Ocultar una solicitud solo limpia tu tablero en este navegador.
+                    No cancela servicios, no borra pagos y no elimina reseñas.
+                  </p>
+                </div>
+              </div>
               {solicitudes.length === 0 ? (
                 <Card className="border-dashed border-2 py-20 text-center bg-transparent">
                   <p className="text-slate-500 font-medium">
@@ -337,9 +441,37 @@ const [resenas, setResenas] = useState([]);
               ) : (
                 <div className="grid gap-4">
                   {/* Aquí va todo tu .map de solicitudes intacto */}
-                  {solicitudes.map((sol) => (
+                  {solicitudesEnVista.map((sol, index) => {
+                    const iniciaFinalizadas =
+                      index === solicitudesActivas.length &&
+                      solicitudesFinalizadas.length > 0;
+
+                    return (
+                    <div key={sol.id} className="space-y-3">
+                    {index === 0 && solicitudesActivas.length > 0 && (
+                      <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
+                        <p className="font-black text-slate-900">Activas</p>
+                        <Badge className="bg-slate-100 text-slate-700 border-0">
+                          {solicitudesActivas.length}
+                        </Badge>
+                      </div>
+                    )}
+                    {iniciaFinalizadas && (
+                      <div className="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm">
+                        <div>
+                          <p className="font-black text-slate-900">
+                            Finalizadas y rechazadas
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            Mostrando {Math.min(limiteFinalizadas, solicitudesFinalizadas.length)} de {solicitudesFinalizadas.length}
+                          </p>
+                        </div>
+                        <Badge className="bg-slate-100 text-slate-700 border-0">
+                          {solicitudesFinalizadas.length}
+                        </Badge>
+                      </div>
+                    )}
                     <Card
-                      key={sol.id}
                       className="border-0 shadow-sm bg-white overflow-hidden hover:shadow-md transition-all"
                     >
                       <div className="flex">
@@ -489,11 +621,44 @@ const [resenas, setResenas] = useState([]);
     </Button>
   )}
 
+  {["completado", "rechazado"].includes(sol.estado) && (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={() => ocultarSolicitud(sol.id)}
+      className="mt-3 text-slate-500 hover:text-slate-900"
+    >
+      <EyeOff className="h-4 w-4 mr-2" />
+      Ocultar de esta vista
+    </Button>
+  )}
+
 </div>
                         </div>
                       </div>
                     </Card>
-                  ))}
+                    </div>
+                  );
+                  })}
+                  {solicitudesFinalizadas.length > limiteFinalizadas && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setLimiteFinalizadas((actual) => actual + 5)}
+                        className="rounded-xl border-slate-200"
+                      >
+                        Ver 5 finalizadas más
+                      </Button>
+                    </div>
+                  )}
+                  {solicitudesEnVista.length === 0 && (
+                    <Card className="border-dashed border-2 py-12 text-center bg-transparent">
+                      <p className="text-slate-500 font-medium">
+                        No hay solicitudes visibles. Restaura las ocultas si quieres revisarlas.
+                      </p>
+                    </Card>
+                  )}
                 </div>
               )}
             </div>

@@ -7,17 +7,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
+  AlertCircle,
   BadgeCheck,
   Briefcase,
   Camera,
+  HelpCircle,
   Loader2,
   Lock,
   MapPin,
   Save,
   ShieldCheck,
+  ShieldAlert,
   User,
 } from "lucide-react";
 import Sidebar from "@/components/ui/Sidebar";
+import BotonEliminar from "@/components/ui/BotonEliminar";
 import { toast } from "sonner";
 
 const zonasSugeridas = [
@@ -227,6 +231,10 @@ export default function AjustesTrabajador() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 grid gap-4">
+              <HelpBox>
+                Esta información aparece en tu perfil público. Una foto clara y
+                teléfono actualizado ayudan a que el cliente confíe antes de contratar.
+              </HelpBox>
               <div className="flex items-center gap-4">
                 <img
                   src={
@@ -269,6 +277,10 @@ export default function AjustesTrabajador() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
+              <HelpBox>
+                Selecciona todos los oficios que realmente puedes atender. Esto
+                mejora los filtros y evita solicitudes equivocadas.
+              </HelpBox>
               <Label className="flex items-center gap-2">
                 <BadgeCheck className="h-4 w-4 text-[#14A5B8]" />
                 Oficios visibles en tu perfil
@@ -302,6 +314,10 @@ export default function AjustesTrabajador() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
+              <HelpBox>
+                Agrega las zonas donde puedes trabajar. El cliente usará esta
+                información para saber si estás dentro de su cobertura.
+              </HelpBox>
               <div className="space-y-2">
                 <Label>Zona de Cobertura Principal</Label>
                 <Input name="zona" defaultValue={perfil?.nombre_zona} />
@@ -391,7 +407,34 @@ export default function AjustesTrabajador() {
             </Button>
           </CardContent>
         </Card>
+
+        <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+          <CardHeader className="bg-white border-b border-slate-50">
+            <CardTitle className="text-lg flex items-center gap-2 text-red-700">
+              <ShieldAlert className="h-5 w-5" /> Zona de peligro
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700 flex gap-3">
+              <AlertCircle className="h-5 w-5 shrink-0" />
+              <p>
+                Si eliminas tu cuenta, se borrarán tu perfil, portafolio,
+                solicitudes y reseñas relacionadas. Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <BotonEliminar tipoUsuario="trabajador" userId={perfil?.id} />
+          </CardContent>
+        </Card>
       </div>
+    </div>
+  );
+}
+
+function HelpBox({ children }) {
+  return (
+    <div className="flex gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+      <HelpCircle className="h-5 w-5 shrink-0" />
+      <p>{children}</p>
     </div>
   );
 }
