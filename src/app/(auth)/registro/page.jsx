@@ -15,7 +15,9 @@ import {
   CheckCircle2,
   Loader2,
   MapPin,
+  Plus,
   ShieldCheck,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -542,61 +544,116 @@ export default function RegistroPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-3 border-t pt-5">
-                  <Label className="text-base font-bold">Zonas de cobertura</Label>
-                  <Input
-                    name="zona"
-                    value={location.name}
-                    onChange={(e) => setLocation({ ...location, name: e.target.value })}
-                    placeholder="Zona principal, municipio o alcaldía"
-                    required
-                  />
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Input
-                      value={zonaManual}
-                      onChange={(e) => setZonaManual(e.target.value)}
-                      placeholder="Agregar otra zona"
-                    />
-                    <Button type="button" variant="outline" onClick={agregarZonaManual}>
-                      Agregar
-                    </Button>
+                <div className="grid gap-5 border-t pt-5">
+                  <div>
+                    <Label className="text-base font-bold">
+                      ¿Dónde puedes trabajar?
+                    </Label>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Escribe tu zona principal y agrega otras zonas cercanas si
+                      también puedes atender servicios ahí.
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {zonasSugeridas.map((zona) => (
-                      <button
+
+                  <div className="space-y-2">
+                    <Label>Zona principal</Label>
+                    <Input
+                      name="zona"
+                      value={location.name}
+                      onChange={(e) => setLocation({ ...location, name: e.target.value })}
+                      placeholder="Ej. Centro de Monterrey, Guadalupe, San Pedro"
+                      required
+                    />
+                    <p className="text-xs text-slate-500">
+                      Esta será la primera zona que verán los clientes en tu perfil.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Zonas adicionales opcionales</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        value={zonaManual}
+                        onChange={(e) => setZonaManual(e.target.value)}
+                        placeholder="Ej. Cumbres, Apodaca, Área metropolitana"
+                      />
+                      <Button
                         type="button"
-                        key={zona}
-                        onClick={() => toggleZona(zona)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
-                          zonasCobertura.includes(zona)
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-500 border-slate-200"
-                        }`}
+                        variant="outline"
+                        onClick={agregarZonaManual}
+                        className="sm:w-auto"
                       >
-                        {zona}
-                      </button>
-                    ))}
-                    {zonasCobertura
-                      .filter((zona) => !zonasSugeridas.includes(zona))
-                      .map((zona) => (
+                        <Plus className="h-4 w-4 mr-2" />
+                        Agregar
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-slate-700">
+                      Sugerencias rápidas
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {zonasSugeridas.map((zona) => (
                         <button
                           type="button"
                           key={zona}
                           onClick={() => toggleZona(zona)}
-                          className="rounded-full px-3 py-1.5 text-xs font-bold border bg-slate-900 text-white border-slate-900"
+                          className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
+                            zonasCobertura.includes(zona)
+                              ? "bg-slate-900 text-white border-slate-900"
+                              : "bg-white text-slate-500 border-slate-200"
+                          }`}
                         >
-                          {zona} x
+                          {zona}
                         </button>
                       ))}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Toca una sugerencia para agregarla o quitarla.
+                    </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleGetLocation("trabajador")}
-                    className="border-[#14A5B8] text-[#14A5B8]"
-                  >
-                    <MapPin className="h-4 w-4 mr-2" /> Detectar mi ubicación
-                  </Button>
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-bold text-slate-800">
+                      Zonas adicionales seleccionadas
+                    </p>
+                    {zonasCobertura.length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-500">
+                        Aún no agregas zonas extra. Puedes continuar solo con tu
+                        zona principal.
+                      </p>
+                    ) : (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {zonasCobertura.map((zona) => (
+                          <button
+                            type="button"
+                            key={zona}
+                            onClick={() => toggleZona(zona)}
+                            className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white"
+                          >
+                            {zona}
+                            <X className="h-3 w-3" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGetLocation("trabajador")}
+                      className="w-full border-[#14A5B8] text-[#14A5B8]"
+                    >
+                      <MapPin className="h-4 w-4 mr-2" /> Usar mi ubicación actual
+                    </Button>
+                    <p className="text-xs text-slate-500">
+                      Esto intenta llenar tu zona principal con la ubicación del
+                      navegador. Revísala antes de crear tu cuenta.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="grid gap-4 border-t pt-5">
