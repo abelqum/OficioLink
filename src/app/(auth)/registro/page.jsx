@@ -17,6 +17,7 @@ import {
   MapPin,
   Plus,
   ShieldCheck,
+  User,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -42,6 +43,12 @@ export default function RegistroPage() {
   const [mensajeError, setMensajeError] = useState("");
   const [passwordRegistro, setPasswordRegistro] = useState("");
   const [passwordValida, setPasswordValida] = useState(false);
+  const [pasoTrabajador, setPasoTrabajador] = useState(1);
+  const [datosTrabajador, setDatosTrabajador] = useState({
+    nombre: "",
+    telefono: "",
+    email: "",
+  });
   const [oficios, setOficios] = useState([]);
   const [oficiosSeleccionados, setOficiosSeleccionados] = useState([]);
   const [zonasCobertura, setZonasCobertura] = useState([]);
@@ -91,6 +98,55 @@ export default function RegistroPage() {
       setZonasCobertura((actuales) => [...actuales, zona]);
     }
     setZonaManual("");
+  };
+
+  const actualizarDatoTrabajador = (campo, valor) => {
+    setDatosTrabajador((actuales) => ({ ...actuales, [campo]: valor }));
+  };
+
+  const avanzarPasoTrabajador = () => {
+    setMensajeError("");
+    if (pasoTrabajador === 1) {
+      if (
+        !datosTrabajador.nombre.trim() ||
+        !datosTrabajador.telefono.trim() ||
+        !datosTrabajador.email.trim()
+      ) {
+        const mensaje = "Completa nombre, teléfono y correo para continuar.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+      if (!passwordValida) {
+        const mensaje =
+          "La contraseña debe incluir al menos una mayúscula y un símbolo especial.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+    }
+
+    if (pasoTrabajador === 2) {
+      if (!oficiosSeleccionados.length) {
+        const mensaje = "Selecciona al menos un oficio que ofreces.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+      if (!location.name.trim()) {
+        const mensaje = "Escribe tu zona principal de trabajo.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+    }
+
+    setPasoTrabajador((actual) => Math.min(actual + 1, 3));
+  };
+
+  const retrocederPasoTrabajador = () => {
+    setMensajeError("");
+    setPasoTrabajador((actual) => Math.max(actual - 1, 1));
   };
 
   const subirArchivo = async (bucket, archivo, userId, prefijo) => {
@@ -217,7 +273,29 @@ export default function RegistroPage() {
     setMensajeError("");
     setEstadoRegistro("Creando tu cuenta segura...");
     const formData = new FormData(e.target);
-    const password = formData.get("password")?.toString() || "";
+    const nombreRegistro =
+      tipo === "trabajador" ? datosTrabajador.nombre : formData.get("nombre");
+    const telefonoRegistro =
+      tipo === "trabajador" ? datosTrabajador.telefono : formData.get("telefono");
+    const emailRegistro =
+      tipo === "trabajador" ? datosTrabajador.email : formData.get("email");
+    const password =
+      tipo === "trabajador"
+        ? passwordRegistro
+        : formData.get("password")?.toString() || "";
+
+    if (
+      tipo === "trabajador" &&
+      (!nombreRegistro?.trim() || !telefonoRegistro?.trim() || !emailRegistro?.trim())
+    ) {
+      const mensaje = "Completa tus datos personales antes de crear la cuenta.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(1);
+      return;
+    }
 
     if (!/[A-ZÁÉÍÓÚÑ]/.test(password) || !/[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]/.test(password)) {
       const mensaje =
@@ -235,6 +313,17 @@ export default function RegistroPage() {
       setEstadoRegistro("");
       toast.error(mensaje);
       setLoading(false);
+      setPasoTrabajador(2);
+      return;
+    }
+
+    if (tipo === "trabajador" && !location.name.trim()) {
+      const mensaje = "Indica tu zona principal de trabajo.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(2);
       return;
     }
 
@@ -248,11 +337,12 @@ export default function RegistroPage() {
       setEstadoRegistro("");
       toast.error(mensaje);
       setLoading(false);
+      setPasoTrabajador(3);
       return;
     }
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.get("email"),
+      email: emailRegistro,
       password,
     });
 
@@ -270,8 +360,8 @@ export default function RegistroPage() {
       setEstadoRegistro("Guardando tu dirección de servicio...");
       const { error: dbError } = await supabase.from("usuarios").insert({
         id: userId,
-        nombre_completo: formData.get("nombre"),
-        telefono: formData.get("telefono"),
+        nombre_completo: nombreRegistro,
+        telefono: telefonoRegistro,
         calle: direccion.calle,
         numero_ext: direccion.numero_ext,
         numero_int: direccion.numero_int,
@@ -322,8 +412,8 @@ export default function RegistroPage() {
       const zonasFinales = zonasCobertura.length ? zonasCobertura : [location.name];
       const payloadCompleto = {
         id: userId,
-        nombre_completo: formData.get("nombre"),
-        telefono: formData.get("telefono"),
+        nombre_completo: nombreRegistro,
+        telefono: telefonoRegistro,
         oficio_id: oficiosSeleccionados[0],
         oficio_ids: oficiosSeleccionados,
         ubicacion_latitud: location.lat,
@@ -349,8 +439,8 @@ export default function RegistroPage() {
         console.warn("Fallback a esquema anterior de trabajadores:", error);
         const { error: fallbackError } = await supabase.from("trabajadores").insert({
           id: userId,
-          nombre_completo: formData.get("nombre"),
-          telefono: formData.get("telefono"),
+          nombre_completo: nombreRegistro,
+          telefono: telefonoRegistro,
           oficio_id: oficiosSeleccionados[0],
           ubicacion_latitud: location.lat,
           ubicacion_longitud: location.lng,
@@ -511,157 +601,179 @@ export default function RegistroPage() {
                 onSubmit={(e) => handleRegistro(e, "trabajador")}
                 className="grid gap-5"
               >
-                <CamposBasicos
-                  disabled={loading}
-                  password={passwordRegistro}
-                  onPasswordChange={(event) => setPasswordRegistro(event.target.value)}
-                  onPasswordValidityChange={setPasswordValida}
-                />
+                <PasoTrabajadorIndicador paso={pasoTrabajador} />
 
-                <div className="grid gap-3 border-t pt-5">
-                  <Label className="text-base font-bold flex items-center gap-2">
-                    <BadgeCheck className="h-4 w-4 text-[#14A5B8]" />
-                    Oficios que ofreces
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {oficios.map((oficio) => {
-                      const activo = oficiosSeleccionados.includes(oficio.id);
-                      return (
-                        <button
-                          key={oficio.id}
-                          type="button"
-                          onClick={() => toggleOficio(oficio.id)}
-                          className={`text-left rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
-                            activo
-                              ? "border-[#14A5B8] bg-[#14A5B8]/10 text-[#0f8494]"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                          }`}
-                        >
-                          {oficio.nombre}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid gap-5 border-t pt-5">
-                  <div>
-                    <Label className="text-base font-bold">
-                      ¿Dónde puedes trabajar?
-                    </Label>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Escribe tu zona principal y agrega otras zonas cercanas si
-                      también puedes atender servicios ahí.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Zona principal</Label>
-                    <Input
-                      name="zona"
-                      value={location.name}
-                      onChange={(e) => setLocation({ ...location, name: e.target.value })}
-                      placeholder="Ej. Centro de Monterrey, Guadalupe, San Pedro"
-                      required
+                {pasoTrabajador === 1 && (
+                  <div className="grid gap-5">
+                    <StepHeader
+                      icon={User}
+                      title="Datos de acceso"
+                      description="Primero crea tus datos básicos. Con esto podrás iniciar sesión y recibir avisos de clientes."
                     />
-                    <p className="text-xs text-slate-500">
-                      Esta será la primera zona que verán los clientes en tu perfil.
-                    </p>
+                    <CamposBasicos
+                      disabled={loading}
+                      datos={datosTrabajador}
+                      onDatoChange={actualizarDatoTrabajador}
+                      password={passwordRegistro}
+                      onPasswordChange={(event) =>
+                        setPasswordRegistro(event.target.value)
+                      }
+                      onPasswordValidityChange={setPasswordValida}
+                    />
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    <Label>Zonas adicionales opcionales</Label>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Input
-                        value={zonaManual}
-                        onChange={(e) => setZonaManual(e.target.value)}
-                        placeholder="Ej. Cumbres, Apodaca, Área metropolitana"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={agregarZonaManual}
-                        className="sm:w-auto"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Agregar
-                      </Button>
-                    </div>
-                  </div>
+                {pasoTrabajador === 2 && (
+                  <div className="grid gap-6">
+                    <StepHeader
+                      icon={Camera}
+                      title="Perfil profesional"
+                      description="Ahora dinos qué servicios ofreces, dónde trabajas y qué foto verán los clientes."
+                    />
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Sugerencias rápidas
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {zonasSugeridas.map((zona) => (
-                        <button
-                          type="button"
-                          key={zona}
-                          onClick={() => toggleZona(zona)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
-                            zonasCobertura.includes(zona)
-                              ? "bg-slate-900 text-white border-slate-900"
-                              : "bg-white text-slate-500 border-slate-200"
-                          }`}
-                        >
-                          {zona}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      Toca una sugerencia para agregarla o quitarla.
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-bold text-slate-800">
-                      Zonas adicionales seleccionadas
-                    </p>
-                    {zonasCobertura.length === 0 ? (
-                      <p className="mt-2 text-sm text-slate-500">
-                        Aún no agregas zonas extra. Puedes continuar solo con tu
-                        zona principal.
+                    <div className="grid gap-3">
+                      <Label className="text-base font-bold flex items-center gap-2">
+                        <BadgeCheck className="h-4 w-4 text-[#14A5B8]" />
+                        Oficios que ofreces
+                      </Label>
+                      <p className="text-sm text-slate-500">
+                        Puedes elegir más de uno. Esto ayuda a que aparezcas en
+                        búsquedas correctas.
                       </p>
-                    ) : (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {zonasCobertura.map((zona) => (
-                          <button
-                            type="button"
-                            key={zona}
-                            onClick={() => toggleZona(zona)}
-                            className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white"
-                          >
-                            {zona}
-                            <X className="h-3 w-3" />
-                          </button>
-                        ))}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {oficios.map((oficio) => {
+                          const activo = oficiosSeleccionados.includes(oficio.id);
+                          return (
+                            <button
+                              key={oficio.id}
+                              type="button"
+                              onClick={() => toggleOficio(oficio.id)}
+                              className={`text-left rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                                activo
+                                  ? "border-[#14A5B8] bg-[#14A5B8]/10 text-[#0f8494]"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              {oficio.nombre}
+                            </button>
+                          );
+                        })}
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleGetLocation("trabajador")}
-                      className="w-full border-[#14A5B8] text-[#14A5B8]"
-                    >
-                      <MapPin className="h-4 w-4 mr-2" /> Usar mi ubicación actual
-                    </Button>
-                    <p className="text-xs text-slate-500">
-                      Esto intenta llenar tu zona principal con la ubicación del
-                      navegador. Revísala antes de crear tu cuenta.
-                    </p>
-                  </div>
-                </div>
+                    <div className="grid gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div>
+                        <Label className="text-base font-bold">
+                          ¿Dónde puedes trabajar?
+                        </Label>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Escribe tu zona principal y agrega otras zonas cercanas
+                          si también puedes atender servicios ahí.
+                        </p>
+                      </div>
 
-                <div className="grid gap-4 border-t pt-5">
-                  <Label className="text-base font-bold flex items-center gap-2">
-                    <Camera className="h-4 w-4 text-[#14A5B8]" />
-                    Perfil profesional
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Zona principal</Label>
+                        <Input
+                          name="zona"
+                          value={location.name}
+                          onChange={(e) =>
+                            setLocation({ ...location, name: e.target.value })
+                          }
+                          placeholder="Ej. Centro de Monterrey, Guadalupe, San Pedro"
+                        />
+                        <p className="text-xs text-slate-500">
+                          Esta será la primera zona que verán los clientes en tu perfil.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Zonas adicionales opcionales</Label>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            value={zonaManual}
+                            onChange={(e) => setZonaManual(e.target.value)}
+                            placeholder="Ej. Cumbres, Apodaca, Área metropolitana"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={agregarZonaManual}
+                            className="sm:w-auto"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agregar
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-slate-700">
+                          Sugerencias rápidas
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {zonasSugeridas.map((zona) => (
+                            <button
+                              type="button"
+                              key={zona}
+                              onClick={() => toggleZona(zona)}
+                              className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
+                                zonasCobertura.includes(zona)
+                                  ? "bg-slate-900 text-white border-slate-900"
+                                  : "bg-white text-slate-500 border-slate-200"
+                              }`}
+                            >
+                              {zona}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Toca una sugerencia para agregarla o quitarla.
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-bold text-slate-800">
+                          Zonas adicionales seleccionadas
+                        </p>
+                        {zonasCobertura.length === 0 ? (
+                          <p className="mt-2 text-sm text-slate-500">
+                            Aún no agregas zonas extra. Puedes continuar solo con
+                            tu zona principal.
+                          </p>
+                        ) : (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {zonasCobertura.map((zona) => (
+                              <button
+                                type="button"
+                                key={zona}
+                                onClick={() => toggleZona(zona)}
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white"
+                              >
+                                {zona}
+                                <X className="h-3 w-3" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleGetLocation("trabajador")}
+                          className="w-full border-[#14A5B8] text-[#14A5B8]"
+                        >
+                          <MapPin className="h-4 w-4 mr-2" /> Usar mi ubicación actual
+                        </Button>
+                        <p className="text-xs text-slate-500">
+                          Esto intenta llenar tu zona principal con la ubicación
+                          del navegador. Revísala antes de crear tu cuenta.
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <Label>Foto de perfil</Label>
                       <Input
@@ -669,40 +781,89 @@ export default function RegistroPage() {
                         accept="image/*"
                         onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-blue-500" />
-                        INE o identificación
-                      </Label>
-                      <Input
-                        type="file"
-                        accept="image/*,.pdf"
-                        onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
-                      />
                       <p className="text-xs text-slate-500">
-                        Usa imagen para activar comparación automática.
-                      </p>
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label className="flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-blue-500" />
-                        Selfie para comparar rostro
-                      </Label>
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setSelfieFile(e.target.files?.[0] || null)}
-                      />
-                      <p className="text-xs text-slate-500">
-                        Rostro de frente, buena iluminación y sin lentes oscuros.
+                        Usa una foto clara. Será visible en tu perfil público.
                       </p>
                     </div>
                   </div>
-                  {resultadoVerificacion && (
-                    <VerificationResult result={resultadoVerificacion} />
-                  )}
-                </div>
+                )}
+
+                {pasoTrabajador === 3 && (
+                  <div className="grid gap-5">
+                    <StepHeader
+                      icon={ShieldCheck}
+                      title="Verificación de identidad"
+                      description="Este paso ayuda a dar confianza. Sube tu INE o identificación y una selfie para comparar los rostros."
+                    />
+
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                      La verificación es opcional para crear la cuenta, pero los
+                      clientes verán mejor tu perfil si queda aprobada. Para la
+                      comparación automática, usa imágenes claras en lugar de PDF.
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-blue-500" />
+                          INE o identificación
+                        </Label>
+                        <Input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-slate-500">
+                          Foto frontal, legible y sin reflejos. Si subes PDF, quedará
+                          pendiente para revisión.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-blue-500" />
+                          Selfie para comparar rostro
+                        </Label>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setSelfieFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-slate-500">
+                          Rostro de frente, buena iluminación y sin lentes oscuros.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                      <p className="font-black text-slate-900">Resumen antes de crear</p>
+                      <div className="mt-3 grid gap-2">
+                        <p>
+                          <span className="font-bold">Nombre:</span>{" "}
+                          {datosTrabajador.nombre || "Pendiente"}
+                        </p>
+                        <p>
+                          <span className="font-bold">Oficios:</span>{" "}
+                          {oficiosSeleccionados.length
+                            ? oficios
+                                .filter((oficio) =>
+                                  oficiosSeleccionados.includes(oficio.id),
+                                )
+                                .map((oficio) => oficio.nombre)
+                                .join(", ")
+                            : "Pendiente"}
+                        </p>
+                        <p>
+                          <span className="font-bold">Zona principal:</span>{" "}
+                          {location.name || "Pendiente"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {resultadoVerificacion && (
+                      <VerificationResult result={resultadoVerificacion} />
+                    )}
+                  </div>
+                )}
 
                 <EstadoFormulario
                   loading={loading}
@@ -710,22 +871,95 @@ export default function RegistroPage() {
                   error={mensajeError}
                 />
 
-                <Button
-                  disabled={loading || !passwordValida}
-                  className="bg-[#14A5B8] h-12 mt-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                      Creando perfil...
-                    </>
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={retrocederPasoTrabajador}
+                    disabled={loading || pasoTrabajador === 1}
+                    className="rounded-xl"
+                  >
+                    Atrás
+                  </Button>
+
+                  {pasoTrabajador < 3 ? (
+                    <Button
+                      type="button"
+                      onClick={avanzarPasoTrabajador}
+                      disabled={loading}
+                      className="bg-[#14A5B8] h-12 rounded-xl font-bold"
+                    >
+                      Continuar
+                    </Button>
                   ) : (
-                    "Unirse como experto"
+                    <Button
+                      disabled={loading}
+                      className="bg-[#14A5B8] h-12 rounded-xl font-bold"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                          Creando perfil...
+                        </>
+                      ) : (
+                        "Crear cuenta de técnico"
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </div>
               </form>
             </TabsContent>
           </Tabs>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const pasosTrabajador = [
+  { numero: 1, titulo: "Datos" },
+  { numero: 2, titulo: "Perfil" },
+  { numero: 3, titulo: "Identidad" },
+];
+
+function PasoTrabajadorIndicador({ paso }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-2">
+      {pasosTrabajador.map((item) => {
+        const activo = paso === item.numero;
+        const completado = paso > item.numero;
+        return (
+          <div
+            key={item.numero}
+            className={`rounded-xl border px-3 py-3 text-center text-xs font-black transition-colors ${
+              activo
+                ? "border-[#14A5B8] bg-white text-[#0f8494] shadow-sm"
+                : completado
+                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : "border-transparent text-slate-400"
+            }`}
+          >
+            <span className="block text-[10px] uppercase tracking-widest">
+              Paso {item.numero}
+            </span>
+            <span>{item.titulo}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StepHeader({ icon: Icon, title, description }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14A5B8]/10 text-[#0f8494]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-slate-900">{title}</h3>
+          <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
       </div>
     </div>
@@ -789,10 +1023,20 @@ function VerificationResult({ result }) {
 
 function CamposBasicos({
   disabled = false,
+  datos,
+  onDatoChange,
   password,
   onPasswordChange,
   onPasswordValidityChange,
 }) {
+  const controlledProps = (campo) =>
+    datos && onDatoChange
+      ? {
+          value: datos[campo],
+          onChange: (event) => onDatoChange(campo, event.target.value),
+        }
+      : {};
+
   return (
     <>
       <div className="grid gap-2">
@@ -803,6 +1047,7 @@ function CamposBasicos({
           autoComplete="name"
           disabled={disabled}
           required
+          {...controlledProps("nombre")}
         />
       </div>
       <div className="grid gap-2">
@@ -814,6 +1059,7 @@ function CamposBasicos({
           autoComplete="tel"
           disabled={disabled}
           required
+          {...controlledProps("telefono")}
         />
       </div>
       <div className="grid gap-2">
@@ -825,6 +1071,7 @@ function CamposBasicos({
           autoComplete="email"
           disabled={disabled}
           required
+          {...controlledProps("email")}
         />
       </div>
       <PasswordField
