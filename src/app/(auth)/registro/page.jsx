@@ -339,27 +339,19 @@ export default function RegistroPage() {
   };
 
   return (
-    <div className="brand-shell flex min-h-screen relative">
+    <div className="flex min-h-screen relative bg-slate-50">
       <Link
         href="/login"
-        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-700 lg:text-white/80 hover:text-[#1E6FD9] lg:hover:text-white transition-colors font-bold z-50 bg-white/80 lg:bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/40 lg:border-white/15 shadow-sm"
+        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-600 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-200 shadow-sm"
       >
         <ArrowLeft className="h-5 w-5" />
         Volver
       </Link>
 
-      <div className="brand-dark hidden lg:flex lg:w-1/2 flex-col justify-between p-12 text-white">
-        <div className="w-fit rounded-2xl bg-white px-4 py-3 shadow-2xl shadow-black/20">
-          <Image
-            src="/logo-letras.png"
-            alt="Logo"
-            width={180}
-            height={54}
-            className="h-10 w-auto"
-          />
-        </div>
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-950 p-12 text-white">
+        <Image src="/logo-letras.png" alt="Logo" width={250} height={250} />
         <div className="space-y-5 max-w-md">
-          <p className="brand-eyebrow w-fit">
+          <p className="text-sm uppercase tracking-[0.25em] text-[#14A5B8] font-bold">
             OficioLink Pro
           </p>
           <h1 className="text-5xl font-black leading-tight">
@@ -372,21 +364,11 @@ export default function RegistroPage() {
       </div>
 
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 overflow-y-auto">
-        <div className="mock-panel w-full max-w-2xl p-6 md:p-8">
+        <div className="w-full max-w-2xl bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-100">
           <Tabs defaultValue="cliente">
-            <TabsList className="grid grid-cols-2 mb-8 rounded-2xl bg-[#EEF4FF] p-1">
-              <TabsTrigger
-                value="cliente"
-                className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1E6FD9]"
-              >
-                Cliente
-              </TabsTrigger>
-              <TabsTrigger
-                value="trabajador"
-                className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1E6FD9]"
-              >
-                Trabajador
-              </TabsTrigger>
+            <TabsList className="grid grid-cols-2 mb-8">
+              <TabsTrigger value="cliente">Cliente</TabsTrigger>
+              <TabsTrigger value="trabajador">Trabajador</TabsTrigger>
             </TabsList>
 
             <TabsContent value="cliente">
@@ -399,7 +381,7 @@ export default function RegistroPage() {
                 />
                 <div className="border-t pt-4 mt-2">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-                  <Label className="text-lg font-bold text-[#14A5B8]">
+                    <Label className="text-lg font-bold text-[#14A5B8]">
                       Dirección del Servicio
                     </Label>
                     <Button
@@ -407,7 +389,7 @@ export default function RegistroPage() {
                       variant="outline"
                       size="lg"
                       onClick={() => handleGetLocation("cliente")}
-                    className="rounded-xl border-[#1E6FD9]/30 text-[#1E6FD9] hover:bg-[#EEF4FF]"
+                      className="text-[#14A5B8] border-[#14A5B8]"
                     >
                       <MapPin className="h-4 w-4 mr-2" /> Autocompletar con GPS
                     </Button>
@@ -471,7 +453,7 @@ export default function RegistroPage() {
 
                 <Button
                   disabled={loading || !passwordValida}
-                  className="green-action-button h-12 mt-4 text-lg"
+                  className="bg-[#14A5B8] h-12 mt-4 text-lg"
                 >
                   {loading ? (
                     <>
@@ -616,7 +598,7 @@ export default function RegistroPage() {
 
                 <Button
                   disabled={loading || !passwordValida}
-                  className="green-action-button h-12 mt-2"
+                  className="bg-[#14A5B8] h-12 mt-2"
                 >
                   {loading ? (
                     <>

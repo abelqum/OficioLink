@@ -278,7 +278,7 @@ const [resenas, setResenas] = useState([]);
   if (loading)
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin h-10 w-10 text-[#1E6FD9]" />
+        <Loader2 className="animate-spin h-10 w-10 text-[#14A5B8]" />
       </div>
     );
 
@@ -306,18 +306,18 @@ const [resenas, setResenas] = useState([]);
         {/* 3. TU CONTENIDO ORIGINAL (Intacto en lógica, mejorado en layout) */}
         <main className="flex-1 p-6 md:p-10 space-y-8 max-w-6xl mx-auto w-full">
           {/* Banner de Bienvenida */}
-          <div className="hero-panel p-8 md:p-12">
+          <div className="bg-slate-900 rounded-[2rem] p-8 md:p-12 text-white relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <TrendingUp className="w-64 h-64 text-[#14A5B8]" />
+            </div>
             <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div>
-                <p className="text-white/70 font-semibold tracking-wider uppercase text-sm mb-2">
+                <p className="text-[#14A5B8] font-semibold tracking-wider uppercase text-sm mb-2">
                   ¡Hola, {perfil?.nombre_completo.split(" ")[0]}!
                 </p>
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
                   Bienvenido a tu <br /> jornada laboral
                 </h1>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-                <TrendingUp className="h-10 w-10 text-[#35C56A]" />
               </div>
             </div>
           </div>
@@ -344,7 +344,7 @@ const [resenas, setResenas] = useState([]);
                     >
                       <div className="flex">
                         <div
-                          className={`w-2 ${sol.estado === "pendiente" ? "bg-amber-400" : sol.estado === "en_proceso" ? "bg-[#1E6FD9]" : "bg-green-500"}`}
+                          className={`w-2 ${sol.estado === "pendiente" ? "bg-amber-400" : sol.estado === "en_proceso" ? "bg-[#14A5B8]" : "bg-green-500"}`}
                         />
                         <div className="flex-1 p-6">
                           {/* Cabecera de la tarjeta */}
@@ -371,7 +371,7 @@ const [resenas, setResenas] = useState([]);
 
                           {/* Logística */}
                           <div className="bg-slate-50 rounded-2xl p-5 mb-6 border border-slate-100">
-                            <p className="text-[10px] text-[#1E6FD9] uppercase font-black tracking-widest mb-3 flex items-center gap-2">
+                            <p className="text-[10px] text-[#14A5B8] uppercase font-black tracking-widest mb-3 flex items-center gap-2">
                               <MapPin className="h-3 w-3" /> Datos de Ubicación
                             </p>
                             {sol.usuarios?.calle ? (
@@ -415,7 +415,7 @@ const [resenas, setResenas] = useState([]);
                                 {sol.servicio_detalle}
                               </p>
                               {sol.oficio_id && (
-                                <Badge className="mt-2 bg-[#1E6FD9]/10 text-[#1557b7] border-0">
+                                <Badge className="mt-2 bg-[#14A5B8]/10 text-[#0f8494] border-0">
                                   {nombreOficio(sol.oficio_id)}
                                 </Badge>
                               )}
@@ -450,7 +450,7 @@ const [resenas, setResenas] = useState([]);
   {/* ESTADO 1: PENDIENTE (El trabajador propone el precio) */}
   {sol.estado === 'pendiente' && (
     <div className="space-y-3 bg-slate-50 p-4 rounded-xl">
-      <Label className="text-[#1E6FD9] font-bold">Propón un precio por este trabajo:</Label>
+      <Label className="text-[#14A5B8] font-bold">Propón un precio por este trabajo:</Label>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
@@ -501,7 +501,7 @@ const [resenas, setResenas] = useState([]);
             {/* Columna Derecha: Portafolio (Tu código exacto) */}
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <ImageIcon className="h-6 w-6 text-[#1E6FD9]" /> Portafolio
+                <ImageIcon className="h-6 w-6 text-[#14A5B8]" /> Portafolio
               </h2>
               <Card className="p-5 bg-white border-0 shadow-sm rounded-2xl">
                 <form onSubmit={subirFoto} className="space-y-4">
@@ -598,7 +598,7 @@ const [resenas, setResenas] = useState([]);
                     <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#1E6FD9]">
+                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#14A5B8]">
                             {r.usuarios?.nombre_completo?.[0] || "C"}
                           </div>
                           <div>

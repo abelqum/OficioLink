@@ -66,50 +66,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="brand-shell flex min-h-screen relative">
+    <div className="flex min-h-screen relative">
       {/* Columna Izquierda: Branding */}
       <Link
         href="/"
-        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-700 lg:text-white/80 hover:text-[#1E6FD9] lg:hover:text-white transition-colors font-bold z-50 bg-white/80 lg:bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl border border-white/40 lg:border-white/15 shadow-sm"
+        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-500 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-sm"
       >
         <ArrowLeft className="h-5 w-5" />
       </Link>
-      <div className="brand-dark hidden lg:flex lg:w-1/2 flex-col justify-between p-12 text-white">
-        <div className="w-fit rounded-2xl bg-white px-4 py-3 shadow-2xl shadow-black/20">
-          <Image
-            src="/logo-letras.png"
-            alt="Oficio Link Logo"
-            width={180}
-            height={54}
-            className="h-10 w-auto"
-          />
-        </div>
+      <div className="hidden  lg:flex lg:w-1/2 flex-col items-center justify-center bg-[#14A5B8] p-12 text-white text-center">
+        <Image
+          src="/logo-letras.png"
+          alt="Oficio Link Logo"
+          width={300}
+          height={300}
+          className="mb-6 w-auto h-auto"
+        />
 
-        <div className="max-w-lg">
-          <div className="brand-eyebrow">Acceso seguro</div>
-          <h1 className="mt-6 text-5xl font-black leading-tight">
-            Retoma tus servicios con toda la información en orden.
-          </h1>
-          <p className="mt-5 text-lg leading-8 text-white/75">
-            Cotizaciones, citas, reseñas y mensajes viven en una experiencia clara.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-3">
-          {["Verificación", "Cotización", "Agenda"].map((item) => (
-            <div key={item} className="rounded-2xl border border-white/15 bg-white/10 p-4 text-sm font-bold text-white/80 backdrop-blur">
-              {item}
-            </div>
-          ))}
-        </div>
+        <p className="text-xl font-medium max-w-md">
+          La red profesional de los oficios. Conectando expertos con
+          oportunidades.
+        </p>
       </div>
 
       {/* Columna Derecha: Formulario */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6">
-        <div className="mock-panel w-full max-w-md p-8 md:p-10">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-50 p-6">
+        <div className="w-full max-w-md bg-white p-10 rounded-3xl shadow-xl shadow-slate-200">
           <div className="mb-10 flex flex-col gap-2">
-            <div className="light-eyebrow w-fit">Cuenta</div>
-            <h2 className="mt-3 text-3xl font-black text-[#1E0A4E]">
+            <h2 className="text-3xl font-bold text-slate-900">
               Bienvenido de Nuevo
             </h2>
             <p className="text-slate-600">Inicia sesión para continuar.</p>
@@ -155,7 +139,7 @@ export default function LoginPage() {
 
             <Button
               disabled={loading}
-              className="brand-gradient-button w-full h-12 text-base"
+              className="w-full h-12 text-base font-semibold bg-[#14A5B8] hover:bg-[#0f8494]"
             >
               {loading ? (
                 <>

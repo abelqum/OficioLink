@@ -194,7 +194,7 @@ export default function PerfilExperto() {
   if (loading)
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="animate-spin h-10 w-10 text-[#1E6FD9]" />
+        <Loader2 className="animate-spin h-10 w-10 text-[#14A5B8]" />
       </div>
     );
 
@@ -212,7 +212,7 @@ export default function PerfilExperto() {
         <Link href="/cliente">
           <Button
             variant="ghost"
-            className="text-slate-500 hover:text-[#1E6FD9] gap-2 font-bold mb-6"
+            className="text-slate-500 hover:text-[#14A5B8] gap-2 font-bold mb-6"
           >
             <ArrowLeft className="h-4 w-4" /> Volver a la búsqueda
           </Button>
@@ -249,7 +249,7 @@ export default function PerfilExperto() {
                       {nombresOficios.map((nombre) => (
                         <Badge
                           key={nombre}
-                          className="bg-[#1E6FD9] hover:bg-[#1E6FD9] px-3 py-1 rounded-lg"
+                          className="bg-[#14A5B8] hover:bg-[#14A5B8] px-3 py-1 rounded-lg"
                         >
                           {nombre}
                         </Badge>
@@ -271,7 +271,7 @@ export default function PerfilExperto() {
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button className="bg-[#1E6FD9] hover:bg-[#1557b7] px-8 h-12 rounded-xl font-bold shadow-lg shadow-[#1E6FD9]/20">
+                      <Button className="bg-[#14A5B8] hover:bg-[#0f8494] px-8 h-12 rounded-xl font-bold shadow-lg shadow-[#14A5B8]/20">
                         Solicitar o agendar
                       </Button>
                     </DialogTrigger>
@@ -288,7 +288,7 @@ export default function PerfilExperto() {
                           </Label>
                           <select
                             name="oficio_id"
-                            className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#1E6FD9]"
+                            className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#14A5B8]"
                             defaultValue={getOficioIds(trabajador)[0]}
                           >
                             {getOficioIds(trabajador).map((oficioId) => {
@@ -310,7 +310,7 @@ export default function PerfilExperto() {
                           <textarea
                             name="detalle"
                             required
-                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#1E6FD9] outline-none h-24 resize-none"
+                            className="w-full p-4 rounded-xl border border-slate-200 bg-slate-50 focus:ring-2 focus:ring-[#14A5B8] outline-none h-24 resize-none"
                             placeholder="Ej: Necesito revisar el centro de carga..."
                           />
                         </div>
@@ -322,7 +322,7 @@ export default function PerfilExperto() {
                             <input
                               name="cita_presupuesto"
                               type="datetime-local"
-                              className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#1E6FD9]"
+                              className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#14A5B8]"
                             />
                           </div>
                           <div className="space-y-2">
@@ -331,7 +331,7 @@ export default function PerfilExperto() {
                             </Label>
                             <select
                               name="modalidad_cita"
-                              className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#1E6FD9]"
+                              className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#14A5B8]"
                             >
                               <option value="Visita a domicilio">Visita a domicilio</option>
                               <option value="Videollamada">Videollamada</option>
@@ -345,7 +345,7 @@ export default function PerfilExperto() {
                           </Label>
                           <select
                             name="pago"
-                            className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#1E6FD9]"
+                            className="w-full p-3 rounded-xl border border-slate-200 bg-white outline-none focus:ring-2 focus:ring-[#14A5B8]"
                           >
                             <option value="Efectivo">Efectivo</option>
                             <option value="Tarjeta">Tarjeta</option>
@@ -370,7 +370,7 @@ export default function PerfilExperto() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 mt-10 pt-8 border-t border-slate-100">
                   <InfoItem
                     label="Cobertura"
-                    icon={<MapPin className="h-4 w-4 text-[#1E6FD9]" />}
+                    icon={<MapPin className="h-4 w-4 text-[#14A5B8]" />}
                     value={
                       Array.isArray(trabajador?.zonas_cobertura) &&
                       trabajador.zonas_cobertura.length
@@ -415,7 +415,7 @@ export default function PerfilExperto() {
                       <CardContent className="p-6">
                         <div className="flex justify-between items-start mb-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#1E6FD9] text-lg">
+                            <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#14A5B8] text-lg">
                               {r.usuarios?.nombre_completo?.[0] || "U"}
                             </div>
                             <div>
@@ -454,7 +454,7 @@ export default function PerfilExperto() {
 
           <aside className="space-y-6">
             <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="h-6 w-6 text-[#1E6FD9]" /> Portafolio
+              <CheckCircle2 className="h-6 w-6 text-[#14A5B8]" /> Portafolio
             </h2>
             {fotos.length === 0 ? (
               <div className="bg-white p-6 rounded-2xl border border-dashed text-center">
