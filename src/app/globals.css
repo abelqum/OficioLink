@@ -128,3 +128,76 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .app-shell {
+    background:
+      linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.98)),
+      repeating-linear-gradient(
+        135deg,
+        rgba(20, 165, 184, 0.05) 0,
+        rgba(20, 165, 184, 0.05) 1px,
+        transparent 1px,
+        transparent 22px
+      );
+  }
+
+  .surface-card {
+    @apply rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_45px_rgba(15,23,42,0.08)] backdrop-blur;
+  }
+
+  .hero-panel {
+    @apply relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950 text-white shadow-[0_24px_70px_rgba(15,23,42,0.28)];
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 1) 0%, rgba(21, 94, 117, 0.96) 58%, rgba(20, 184, 166, 0.94) 100%);
+  }
+
+  .hero-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.75), transparent 78%);
+    pointer-events: none;
+  }
+
+  .hero-panel::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 44%;
+    background: linear-gradient(180deg, transparent, rgba(2, 6, 23, 0.32));
+    pointer-events: none;
+  }
+
+  .stat-pill {
+    @apply rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-bold text-white/90 backdrop-blur;
+  }
+
+  .filter-field {
+    @apply h-11 rounded-xl border-slate-200 bg-white shadow-sm transition-all focus-visible:border-[#14A5B8] focus-visible:ring-[#14A5B8]/25;
+  }
+
+  .filter-chip {
+    @apply rounded-full border px-3 py-1.5 text-xs font-bold transition-all;
+  }
+
+  .filter-chip-active {
+    @apply border-slate-900 bg-slate-900 text-white shadow-sm;
+  }
+
+  .filter-chip-idle {
+    @apply border-slate-200 bg-white text-slate-600 hover:border-[#14A5B8]/60 hover:bg-[#14A5B8]/5 hover:text-[#0f8494];
+  }
+
+  .expert-card {
+    @apply rounded-2xl border border-white/70 bg-white shadow-[0_14px_35px_rgba(15,23,42,0.07)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.12)];
+  }
+
+  .soft-divider {
+    @apply border-t border-slate-100/80;
+  }
+}

@@ -1,36 +1,62 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordField from "@/components/ui/PasswordField";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  User,
-  Briefcase,
-  Mail,
-  Lock,
-  Phone,
-  MapPin,
+  AlertCircle,
+  ArrowLeft,
+  BadgeCheck,
+  Camera,
+  CheckCircle2,
   Loader2,
+  MapPin,
+  Plus,
+  ShieldCheck,
+  User,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { toast } from "sonner";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { verificarIdentidadLocal } from "@/lib/identityVerification";
+
+const zonasSugeridas = [
+  "Centro",
+  "Norte",
+  "Sur",
+  "Oriente",
+  "Poniente",
+  "Área metropolitana",
+];
+
 export default function RegistroPage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [estadoRegistro, setEstadoRegistro] = useState("");
+  const [mensajeError, setMensajeError] = useState("");
+  const [passwordRegistro, setPasswordRegistro] = useState("");
+  const [passwordValida, setPasswordValida] = useState(false);
+  const [pasoTrabajador, setPasoTrabajador] = useState(1);
+  const [datosTrabajador, setDatosTrabajador] = useState({
+    nombre: "",
+    telefono: "",
+    email: "",
+  });
   const [oficios, setOficios] = useState([]);
+  const [oficiosSeleccionados, setOficiosSeleccionados] = useState([]);
+  const [zonasCobertura, setZonasCobertura] = useState([]);
+  const [zonaManual, setZonaManual] = useState("");
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [identidadFile, setIdentidadFile] = useState(null);
+  const [selfieFile, setSelfieFile] = useState(null);
+  const [resultadoVerificacion, setResultadoVerificacion] = useState(null);
   const [location, setLocation] = useState({ lat: null, lng: null, name: "" });
   const [direccion, setDireccion] = useState({
     calle: "",
@@ -40,39 +66,126 @@ export default function RegistroPage() {
     cp: "",
     referencias: "",
   });
-  // Cargar oficios desde la base de datos
+
   useEffect(() => {
     const fetchOficios = async () => {
       const { data } = await supabase.from("oficios").select("id, nombre");
       if (data) setOficios(data);
     };
     fetchOficios();
-  }, []);
+  }, [supabase]);
+
+  const toggleOficio = (id) => {
+    setOficiosSeleccionados((actuales) =>
+      actuales.includes(id)
+        ? actuales.filter((item) => item !== id)
+        : [...actuales, id],
+    );
+  };
+
+  const toggleZona = (zona) => {
+    setZonasCobertura((actuales) =>
+      actuales.includes(zona)
+        ? actuales.filter((item) => item !== zona)
+        : [...actuales, zona],
+    );
+  };
+
+  const agregarZonaManual = () => {
+    const zona = zonaManual.trim();
+    if (!zona) return;
+    if (!zonasCobertura.includes(zona)) {
+      setZonasCobertura((actuales) => [...actuales, zona]);
+    }
+    setZonaManual("");
+  };
+
+  const actualizarDatoTrabajador = (campo, valor) => {
+    setDatosTrabajador((actuales) => ({ ...actuales, [campo]: valor }));
+  };
+
+  const avanzarPasoTrabajador = () => {
+    setMensajeError("");
+    if (pasoTrabajador === 1) {
+      if (
+        !datosTrabajador.nombre.trim() ||
+        !datosTrabajador.telefono.trim() ||
+        !datosTrabajador.email.trim()
+      ) {
+        const mensaje = "Completa nombre, teléfono y correo para continuar.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+      if (!passwordValida) {
+        const mensaje =
+          "La contraseña debe incluir al menos una mayúscula y un símbolo especial.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+    }
+
+    if (pasoTrabajador === 2) {
+      if (!oficiosSeleccionados.length) {
+        const mensaje = "Selecciona al menos un oficio que ofreces.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+      if (!location.name.trim()) {
+        const mensaje = "Escribe tu zona principal de trabajo.";
+        setMensajeError(mensaje);
+        toast.error(mensaje);
+        return;
+      }
+    }
+
+    setPasoTrabajador((actual) => Math.min(actual + 1, 3));
+  };
+
+  const retrocederPasoTrabajador = () => {
+    setMensajeError("");
+    setPasoTrabajador((actual) => Math.max(actual - 1, 1));
+  };
+
+  const subirArchivo = async (bucket, archivo, userId, prefijo) => {
+    if (!archivo) return null;
+
+    const fileExt = archivo.name.split(".").pop();
+    const filePath = `${userId}/${prefijo}-${Date.now()}.${fileExt}`;
+    const { error } = await supabase.storage.from(bucket).upload(filePath, archivo, {
+      upsert: true,
+    });
+
+    if (error) throw error;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(filePath);
+
+    return publicUrl;
+  };
 
   const handleGetLocation = (tipo) => {
     if (!navigator.geolocation) {
       return toast.error("Geolocalización no soportada en este navegador.");
     }
 
-    // 1. Mostrar estado de carga dependiendo de quién lo pidió
     if (tipo === "cliente") {
+      setEstadoRegistro("Buscando tu dirección con GPS...");
       setDireccion((prev) => ({
         ...prev,
         calle: "Buscando...",
         colonia: "Buscando...",
       }));
     } else {
+      setEstadoRegistro("Buscando tu zona de cobertura...");
       setLocation((prev) => ({
         ...prev,
         name: "Buscando zona y coordenadas...",
       }));
     }
-
-    const opcionesGPS = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    };
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -95,7 +208,6 @@ export default function RegistroPage() {
 
           if (!addr) throw new Error("No se encontró dirección");
 
-          // Extracción masiva de datos de OpenStreetMap
           const calleEncontrada =
             addr.road || addr.pedestrian || addr.street || addr.path || "";
           const coloniaEncontrada =
@@ -108,7 +220,6 @@ export default function RegistroPage() {
             addr.municipality || addr.city || addr.town || addr.county || "";
           const estado = addr.state || "";
 
-          // 2. Guardar donde corresponde según el tipo de usuario
           if (tipo === "cliente") {
             setDireccion((prev) => ({
               ...prev,
@@ -117,19 +228,20 @@ export default function RegistroPage() {
               colonia: coloniaEncontrada,
               cp: addr.postcode || "",
             }));
+            setEstadoRegistro("Dirección detectada. Revisa los datos antes de continuar.");
           } else {
-            // El trabajador necesita Lat, Lng y una "Zona" general (Ej. Naucalpan, Estado de México)
             const zonaTexto = municipio
               ? `${municipio}, ${estado}`
               : `${coloniaEncontrada}, ${estado}`;
+            const zonaLimpia = zonaTexto
+              .replace(/^, | ,$|(, )+/g, ", ")
+              .replace(/^, /, "");
 
-            setLocation({
-              lat: lat,
-              lng: lng,
-              name: zonaTexto
-                .replace(/^, | ,$|(, )+/g, ", ")
-                .replace(/^, /, ""), // Limpia comas extra
-            });
+            setLocation({ lat, lng, name: zonaLimpia });
+            if (zonaLimpia && !zonasCobertura.includes(zonaLimpia)) {
+              setZonasCobertura((actuales) => [...actuales, zonaLimpia]);
+            }
+            setEstadoRegistro("Zona detectada. Puedes agregar más zonas si trabajas en varias.");
           }
         } catch (error) {
           console.error("Error al traducir coordenadas:", error);
@@ -139,30 +251,104 @@ export default function RegistroPage() {
           if (tipo === "cliente")
             setDireccion((prev) => ({ ...prev, calle: "", colonia: "" }));
           else setLocation((prev) => ({ ...prev, name: "" }));
+          setEstadoRegistro("");
         }
       },
-      (error) => {
+      () => {
         toast.error(
           "No pudimos acceder a tu ubicación. Verifica los permisos de tu navegador.",
         );
         if (tipo === "cliente")
           setDireccion((prev) => ({ ...prev, calle: "", colonia: "" }));
         else setLocation((prev) => ({ ...prev, name: "" }));
+        setEstadoRegistro("");
       },
-      opcionesGPS,
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     );
   };
+
   const handleRegistro = async (e, tipo) => {
     e.preventDefault();
     setLoading(true);
+    setMensajeError("");
+    setEstadoRegistro("Creando tu cuenta segura...");
     const formData = new FormData(e.target);
+    const nombreRegistro =
+      tipo === "trabajador" ? datosTrabajador.nombre : formData.get("nombre");
+    const telefonoRegistro =
+      tipo === "trabajador" ? datosTrabajador.telefono : formData.get("telefono");
+    const emailRegistro =
+      tipo === "trabajador" ? datosTrabajador.email : formData.get("email");
+    const password =
+      tipo === "trabajador"
+        ? passwordRegistro
+        : formData.get("password")?.toString() || "";
+
+    if (
+      tipo === "trabajador" &&
+      (!nombreRegistro?.trim() || !telefonoRegistro?.trim() || !emailRegistro?.trim())
+    ) {
+      const mensaje = "Completa tus datos personales antes de crear la cuenta.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(1);
+      return;
+    }
+
+    if (!/[A-ZÁÉÍÓÚÑ]/.test(password) || !/[^A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]/.test(password)) {
+      const mensaje =
+        "La contraseña debe incluir al menos una letra mayúscula y un símbolo especial.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      return;
+    }
+
+    if (tipo === "trabajador" && oficiosSeleccionados.length === 0) {
+      const mensaje = "Selecciona al menos un oficio.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(2);
+      return;
+    }
+
+    if (tipo === "trabajador" && !location.name.trim()) {
+      const mensaje = "Indica tu zona principal de trabajo.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(2);
+      return;
+    }
+
+    if (
+      tipo === "trabajador" &&
+      ((identidadFile && !selfieFile) || (!identidadFile && selfieFile))
+    ) {
+      const mensaje =
+        "Para verificar automáticamente, sube identificación y selfie. Si no las tienes ahora, deja ambos campos vacíos.";
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+      setLoading(false);
+      setPasoTrabajador(3);
+      return;
+    }
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email: emailRegistro,
+      password,
     });
 
     if (authError) {
+      setMensajeError(authError.message);
+      setEstadoRegistro("");
       toast.error(authError.message);
       setLoading(false);
       return;
@@ -171,10 +357,11 @@ export default function RegistroPage() {
     const userId = authData.user.id;
 
     if (tipo === "cliente") {
+      setEstadoRegistro("Guardando tu dirección de servicio...");
       const { error: dbError } = await supabase.from("usuarios").insert({
         id: userId,
-        nombre_completo: formData.get("nombre"),
-        telefono: formData.get("telefono"),
+        nombre_completo: nombreRegistro,
+        telefono: telefonoRegistro,
         calle: direccion.calle,
         numero_ext: direccion.numero_ext,
         numero_int: direccion.numero_int,
@@ -183,54 +370,130 @@ export default function RegistroPage() {
         referencias: direccion.referencias,
       });
 
-      // 👇 ESTO ES LO QUE NOS FALTABA 👇
       if (dbError) {
-        console.error("🚨 ERROR AL GUARDAR CLIENTE:", dbError);
-        toast.error(`Error en la base de datos: ${dbError.message}`);
+        console.error("ERROR AL GUARDAR CLIENTE:", dbError);
+        const mensaje = `Error en la base de datos: ${dbError.message}`;
+        setMensajeError(mensaje);
+        setEstadoRegistro("");
+        toast.error(mensaje);
         setLoading(false);
         return;
       }
 
+      setEstadoRegistro("Cuenta creada. Abriendo tu panel...");
       router.push("/cliente");
-    } else {
-      await supabase.from("trabajadores").insert({
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setResultadoVerificacion(null);
+      setEstadoRegistro("Comparando identificación y selfie, si las agregaste...");
+      const resultadoIdentidad = await verificarIdentidadLocal(
+        identidadFile,
+        selfieFile,
+      );
+      setResultadoVerificacion(resultadoIdentidad);
+
+      setEstadoRegistro("Subiendo foto y documentos, si los agregaste...");
+      const avatarUrl = await subirArchivo("avatares", avatarFile, userId, "perfil");
+      const identidadUrl = await subirArchivo(
+        "verificaciones_identidad",
+        identidadFile,
+        userId,
+        "identidad",
+      );
+      const selfieUrl = await subirArchivo(
+        "verificaciones_identidad",
+        selfieFile,
+        userId,
+        "selfie",
+      );
+      const zonasFinales = zonasCobertura.length ? zonasCobertura : [location.name];
+      const payloadCompleto = {
         id: userId,
-        nombre_completo: formData.get("nombre"),
-        telefono: formData.get("telefono"),
-        oficio_id: formData.get("oficio"),
+        nombre_completo: nombreRegistro,
+        telefono: telefonoRegistro,
+        oficio_id: oficiosSeleccionados[0],
+        oficio_ids: oficiosSeleccionados,
         ubicacion_latitud: location.lat,
         ubicacion_longitud: location.lng,
-        nombre_zona: location.name,
-      });
+        nombre_zona: location.name || zonasFinales.filter(Boolean).join(", "),
+        zonas_cobertura: zonasFinales.filter(Boolean),
+        avatar_url: avatarUrl,
+        identidad_url: identidadUrl,
+        identidad_selfie_url: selfieUrl,
+        verificacion_estado: resultadoIdentidad?.estado || "sin_enviar",
+        verificacion_score: resultadoIdentidad?.score ?? null,
+        verificacion_metodo: resultadoIdentidad?.metodo || null,
+        verificacion_mensaje: resultadoIdentidad?.mensaje || null,
+        verificacion_actualizada_en: resultadoIdentidad
+          ? new Date().toISOString()
+          : null,
+      };
+
+      setEstadoRegistro("Guardando tu perfil profesional...");
+      const { error } = await supabase.from("trabajadores").insert(payloadCompleto);
+
+      if (error) {
+        console.warn("Fallback a esquema anterior de trabajadores:", error);
+        const { error: fallbackError } = await supabase.from("trabajadores").insert({
+          id: userId,
+          nombre_completo: nombreRegistro,
+          telefono: telefonoRegistro,
+          oficio_id: oficiosSeleccionados[0],
+          ubicacion_latitud: location.lat,
+          ubicacion_longitud: location.lng,
+          nombre_zona: location.name || zonasFinales.filter(Boolean).join(", "),
+        });
+
+        if (fallbackError) throw fallbackError;
+
+        toast.warning(
+          "Cuenta creada. Aplica la migración de Supabase para activar multi-oficio, foto y verificación.",
+        );
+      }
+
+      setEstadoRegistro("Perfil creado. Abriendo tu panel de trabajador...");
       router.push("/trabajador");
+    } catch (error) {
+      console.error("ERROR AL GUARDAR TRABAJADOR:", error);
+      const mensaje = `Error al crear el perfil: ${error.message}`;
+      setMensajeError(mensaje);
+      setEstadoRegistro("");
+      toast.error(mensaje);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="flex min-h-screen relative bg-slate-50">
       <Link
         href="/login"
-        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-500 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-slate-200 shadow-sm"
+        className="absolute top-6 left-6 md:top-10 md:left-10 flex items-center gap-2 text-slate-600 hover:text-[#14A5B8] transition-colors font-bold z-50 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl border border-slate-200 shadow-sm"
       >
         <ArrowLeft className="h-5 w-5" />
+        Volver
       </Link>
-      <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center bg-[#14A5B8] p-12 text-white">
-        <Image
-          src="/logo-letras.png"
-          alt="Logo"
-          width={250}
-          height={250}
-          className="mb-6"
-        />
 
-        <p className="text-xl text-center">
-          Únete a la comunidad más grande de expertos y clientes.
-        </p>
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between bg-slate-950 p-12 text-white">
+        <Image src="/logo-letras.png" alt="Logo" width={250} height={250} />
+        <div className="space-y-5 max-w-md">
+          <p className="text-sm uppercase tracking-[0.25em] text-[#14A5B8] font-bold">
+            OficioLink Pro
+          </p>
+          <h1 className="text-5xl font-black leading-tight">
+            Perfiles completos para trabajos reales.
+          </h1>
+          <p className="text-lg text-slate-300">
+            Registra tus oficios, zonas, portafolio e identidad desde el inicio.
+          </p>
+        </div>
       </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-50 p-6 overflow-y-auto">
-        <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 overflow-y-auto">
+        <div className="w-full max-w-2xl bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-100">
           <Tabs defaultValue="cliente">
             <TabsList className="grid grid-cols-2 mb-8">
               <TabsTrigger value="cliente">Cliente</TabsTrigger>
@@ -238,21 +501,22 @@ export default function RegistroPage() {
             </TabsList>
 
             <TabsContent value="cliente">
-              <form
-                onSubmit={(e) => handleRegistro(e, "cliente")}
-                className="grid gap-4"
-              >
-                <CamposBasicos />
-
+              <form onSubmit={(e) => handleRegistro(e, "cliente")} className="grid gap-4">
+                <CamposBasicos
+                  disabled={loading}
+                  password={passwordRegistro}
+                  onPasswordChange={(event) => setPasswordRegistro(event.target.value)}
+                  onPasswordValidityChange={setPasswordValida}
+                />
                 <div className="border-t pt-4 mt-2">
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <Label className="text-lg font-bold text-[#14A5B8]">
                       Dirección del Servicio
                     </Label>
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
+                      size="lg"
                       onClick={() => handleGetLocation("cliente")}
                       className="text-[#14A5B8] border-[#14A5B8]"
                     >
@@ -261,95 +525,70 @@ export default function RegistroPage() {
                   </div>
 
                   <div className="grid gap-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Calle</Label>
-                        <Input
-                          value={direccion.calle}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              calle: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Colonia</Label>
-                        <Input
-                          value={direccion.colonia}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              colonia: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <CampoDireccion
+                        label="Calle"
+                        value={direccion.calle}
+                        onChange={(value) => setDireccion({ ...direccion, calle: value })}
+                      />
+                      <CampoDireccion
+                        label="Colonia"
+                        value={direccion.colonia}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, colonia: value })
+                        }
+                      />
                     </div>
-
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label>N° Ext</Label>
-                        <Input
-                          value={direccion.numero_ext}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              numero_ext: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>N° Int (Opcional)</Label>
-                        <Input
-                          value={direccion.numero_int}
-                          onChange={(e) =>
-                            setDireccion({
-                              ...direccion,
-                              numero_int: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>C.P.</Label>
-                        <Input
-                          value={direccion.cp}
-                          onChange={(e) =>
-                            setDireccion({ ...direccion, cp: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
+                      <CampoDireccion
+                        label="No. Ext"
+                        value={direccion.numero_ext}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, numero_ext: value })
+                        }
+                      />
+                      <CampoDireccion
+                        label="No. Int"
+                        value={direccion.numero_int}
+                        required={false}
+                        onChange={(value) =>
+                          setDireccion({ ...direccion, numero_int: value })
+                        }
+                      />
+                      <CampoDireccion
+                        label="C.P."
+                        value={direccion.cp}
+                        onChange={(value) => setDireccion({ ...direccion, cp: value })}
+                      />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Referencias para llegar</Label>
                       <Input
-                        placeholder="Ej. Casa de dos pisos con portón negro frente al parque"
+                        placeholder="Ej. Portón negro frente al parque"
                         value={direccion.referencias}
                         onChange={(e) =>
-                          setDireccion({
-                            ...direccion,
-                            referencias: e.target.value,
-                          })
+                          setDireccion({ ...direccion, referencias: e.target.value })
                         }
                       />
                     </div>
                   </div>
                 </div>
 
+                <EstadoFormulario
+                  loading={loading}
+                  estado={estadoRegistro}
+                  error={mensajeError}
+                />
+
                 <Button
-                  disabled={loading}
+                  disabled={loading || !passwordValida}
                   className="bg-[#14A5B8] h-12 mt-4 text-lg"
                 >
                   {loading ? (
-                    <Loader2 className="animate-spin" />
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                      Creando cuenta...
+                    </>
                   ) : (
                     "Crear cuenta de Cliente"
                   )}
@@ -360,53 +599,314 @@ export default function RegistroPage() {
             <TabsContent value="trabajador">
               <form
                 onSubmit={(e) => handleRegistro(e, "trabajador")}
-                className="grid gap-4"
+                className="grid gap-5"
               >
-                <CamposBasicos />
-                <div className="grid gap-2">
-                  <Label>Oficio</Label>
-                  <Select name="oficio" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona tu oficio" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {oficios.map((o) => (
-                        <SelectItem key={o.id} value={o.id.toString()}>
-                          {o.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <PasoTrabajadorIndicador paso={pasoTrabajador} />
 
-                <div className="grid gap-2 border-t pt-4">
-                  <Label>Zona de Cobertura</Label>
-                  <Input
-                    name="zona"
-                    value={location.name}
-                    onChange={(e) =>
-                      setLocation({ ...location, name: e.target.value })
-                    }
-                    placeholder="Escribe tu zona o usa el botón"
-                    required
-                  />
+                {pasoTrabajador === 1 && (
+                  <div className="grid gap-5">
+                    <StepHeader
+                      icon={User}
+                      title="Datos de acceso"
+                      description="Primero crea tus datos básicos. Con esto podrás iniciar sesión y recibir avisos de clientes."
+                    />
+                    <CamposBasicos
+                      disabled={loading}
+                      datos={datosTrabajador}
+                      onDatoChange={actualizarDatoTrabajador}
+                      password={passwordRegistro}
+                      onPasswordChange={(event) =>
+                        setPasswordRegistro(event.target.value)
+                      }
+                      onPasswordValidityChange={setPasswordValida}
+                    />
+                  </div>
+                )}
+
+                {pasoTrabajador === 2 && (
+                  <div className="grid gap-6">
+                    <StepHeader
+                      icon={Camera}
+                      title="Perfil profesional"
+                      description="Ahora dinos qué servicios ofreces, dónde trabajas y qué foto verán los clientes."
+                    />
+
+                    <div className="grid gap-3">
+                      <Label className="text-base font-bold flex items-center gap-2">
+                        <BadgeCheck className="h-4 w-4 text-[#14A5B8]" />
+                        Oficios que ofreces
+                      </Label>
+                      <p className="text-sm text-slate-500">
+                        Puedes elegir más de uno. Esto ayuda a que aparezcas en
+                        búsquedas correctas.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {oficios.map((oficio) => {
+                          const activo = oficiosSeleccionados.includes(oficio.id);
+                          return (
+                            <button
+                              key={oficio.id}
+                              type="button"
+                              onClick={() => toggleOficio(oficio.id)}
+                              className={`text-left rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+                                activo
+                                  ? "border-[#14A5B8] bg-[#14A5B8]/10 text-[#0f8494]"
+                                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                              }`}
+                            >
+                              {oficio.nombre}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div>
+                        <Label className="text-base font-bold">
+                          ¿Dónde puedes trabajar?
+                        </Label>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Escribe tu zona principal y agrega otras zonas cercanas
+                          si también puedes atender servicios ahí.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Zona principal</Label>
+                        <Input
+                          name="zona"
+                          value={location.name}
+                          onChange={(e) =>
+                            setLocation({ ...location, name: e.target.value })
+                          }
+                          placeholder="Ej. Centro de Monterrey, Guadalupe, San Pedro"
+                        />
+                        <p className="text-xs text-slate-500">
+                          Esta será la primera zona que verán los clientes en tu perfil.
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Zonas adicionales opcionales</Label>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Input
+                            value={zonaManual}
+                            onChange={(e) => setZonaManual(e.target.value)}
+                            placeholder="Ej. Cumbres, Apodaca, Área metropolitana"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={agregarZonaManual}
+                            className="sm:w-auto"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Agregar
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-sm font-semibold text-slate-700">
+                          Sugerencias rápidas
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {zonasSugeridas.map((zona) => (
+                            <button
+                              type="button"
+                              key={zona}
+                              onClick={() => toggleZona(zona)}
+                              className={`rounded-full px-3 py-1.5 text-xs font-bold border ${
+                                zonasCobertura.includes(zona)
+                                  ? "bg-slate-900 text-white border-slate-900"
+                                  : "bg-white text-slate-500 border-slate-200"
+                              }`}
+                            >
+                              {zona}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Toca una sugerencia para agregarla o quitarla.
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                        <p className="text-sm font-bold text-slate-800">
+                          Zonas adicionales seleccionadas
+                        </p>
+                        {zonasCobertura.length === 0 ? (
+                          <p className="mt-2 text-sm text-slate-500">
+                            Aún no agregas zonas extra. Puedes continuar solo con
+                            tu zona principal.
+                          </p>
+                        ) : (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {zonasCobertura.map((zona) => (
+                              <button
+                                type="button"
+                                key={zona}
+                                onClick={() => toggleZona(zona)}
+                                className="inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white"
+                              >
+                                {zona}
+                                <X className="h-3 w-3" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleGetLocation("trabajador")}
+                          className="w-full border-[#14A5B8] text-[#14A5B8]"
+                        >
+                          <MapPin className="h-4 w-4 mr-2" /> Usar mi ubicación actual
+                        </Button>
+                        <p className="text-xs text-slate-500">
+                          Esto intenta llenar tu zona principal con la ubicación
+                          del navegador. Revísala antes de crear tu cuenta.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Foto de perfil</Label>
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                      />
+                      <p className="text-xs text-slate-500">
+                        Usa una foto clara. Será visible en tu perfil público.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {pasoTrabajador === 3 && (
+                  <div className="grid gap-5">
+                    <StepHeader
+                      icon={ShieldCheck}
+                      title="Verificación de identidad"
+                      description="Este paso ayuda a dar confianza. Sube tu INE o identificación y una selfie para comparar los rostros."
+                    />
+
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                      La verificación es opcional para crear la cuenta, pero los
+                      clientes verán mejor tu perfil si queda aprobada. Para la
+                      comparación automática, usa imágenes claras en lugar de PDF.
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-blue-500" />
+                          INE o identificación
+                        </Label>
+                        <Input
+                          type="file"
+                          accept="image/*,.pdf"
+                          onChange={(e) => setIdentidadFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-slate-500">
+                          Foto frontal, legible y sin reflejos. Si subes PDF, quedará
+                          pendiente para revisión.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                          <ShieldCheck className="h-4 w-4 text-blue-500" />
+                          Selfie para comparar rostro
+                        </Label>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setSelfieFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-slate-500">
+                          Rostro de frente, buena iluminación y sin lentes oscuros.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                      <p className="font-black text-slate-900">Resumen antes de crear</p>
+                      <div className="mt-3 grid gap-2">
+                        <p>
+                          <span className="font-bold">Nombre:</span>{" "}
+                          {datosTrabajador.nombre || "Pendiente"}
+                        </p>
+                        <p>
+                          <span className="font-bold">Oficios:</span>{" "}
+                          {oficiosSeleccionados.length
+                            ? oficios
+                                .filter((oficio) =>
+                                  oficiosSeleccionados.includes(oficio.id),
+                                )
+                                .map((oficio) => oficio.nombre)
+                                .join(", ")
+                            : "Pendiente"}
+                        </p>
+                        <p>
+                          <span className="font-bold">Zona principal:</span>{" "}
+                          {location.name || "Pendiente"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {resultadoVerificacion && (
+                      <VerificationResult result={resultadoVerificacion} />
+                    )}
+                  </div>
+                )}
+
+                <EstadoFormulario
+                  loading={loading}
+                  estado={estadoRegistro}
+                  error={mensajeError}
+                />
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => handleGetLocation("trabajador")}
-                    className="border-[#14A5B8] text-[#14A5B8]"
+                    onClick={retrocederPasoTrabajador}
+                    disabled={loading || pasoTrabajador === 1}
+                    className="rounded-xl"
                   >
-                    <MapPin className="h-4 w-4 mr-2" /> Detectar mi ubicación
+                    Atrás
                   </Button>
-                </div>
 
-                <Button disabled={loading} className="bg-[#14A5B8] h-12 mt-4">
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
+                  {pasoTrabajador < 3 ? (
+                    <Button
+                      type="button"
+                      onClick={avanzarPasoTrabajador}
+                      disabled={loading}
+                      className="bg-[#14A5B8] h-12 rounded-xl font-bold"
+                    >
+                      Continuar
+                    </Button>
                   ) : (
-                    "Unirse como experto"
+                    <Button
+                      disabled={loading}
+                      className="bg-[#14A5B8] h-12 rounded-xl font-bold"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                          Creando perfil...
+                        </>
+                      ) : (
+                        "Crear cuenta de técnico"
+                      )}
+                    </Button>
                   )}
-                </Button>
+                </div>
               </form>
             </TabsContent>
           </Tabs>
@@ -416,25 +916,174 @@ export default function RegistroPage() {
   );
 }
 
-function CamposBasicos() {
+const pasosTrabajador = [
+  { numero: 1, titulo: "Datos" },
+  { numero: 2, titulo: "Perfil" },
+  { numero: 3, titulo: "Identidad" },
+];
+
+function PasoTrabajadorIndicador({ paso }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 p-2">
+      {pasosTrabajador.map((item) => {
+        const activo = paso === item.numero;
+        const completado = paso > item.numero;
+        return (
+          <div
+            key={item.numero}
+            className={`rounded-xl border px-3 py-3 text-center text-xs font-black transition-colors ${
+              activo
+                ? "border-[#14A5B8] bg-white text-[#0f8494] shadow-sm"
+                : completado
+                  ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                  : "border-transparent text-slate-400"
+            }`}
+          >
+            <span className="block text-[10px] uppercase tracking-widest">
+              Paso {item.numero}
+            </span>
+            <span>{item.titulo}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StepHeader({ icon: Icon, title, description }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14A5B8]/10 text-[#0f8494]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <h3 className="text-lg font-black text-slate-900">{title}</h3>
+          <p className="mt-1 text-sm text-slate-500">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CampoDireccion({ label, value, onChange, required = true }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} required={required} />
+    </div>
+  );
+}
+
+function EstadoFormulario({ loading, estado, error }) {
+  if (!loading && !error && !estado) return null;
+
+  return (
+    <div
+      role={error ? "alert" : "status"}
+      aria-live="polite"
+      className={`flex items-start gap-3 rounded-2xl border p-4 text-sm font-semibold ${
+        error
+          ? "border-red-200 bg-red-50 text-red-700"
+          : "border-[#14A5B8]/20 bg-[#14A5B8]/10 text-[#0f8494]"
+      }`}
+    >
+      {error ? (
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+      ) : loading ? (
+        <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+      ) : (
+        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
+      )}
+      <span>{error || estado}</span>
+    </div>
+  );
+}
+
+function VerificationResult({ result }) {
+  const styles =
+    result.estado === "verificado"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : result.estado === "rechazado"
+        ? "border-red-200 bg-red-50 text-red-700"
+        : "border-amber-200 bg-amber-50 text-amber-800";
+
+  return (
+    <div className={`rounded-2xl border p-4 text-sm ${styles}`}>
+      <p className="font-black">
+        Resultado automático: {result.estado}
+        {result.score !== null && result.score !== undefined
+          ? ` · similitud ${Math.round(Number(result.score))}%`
+          : ""}
+      </p>
+      <p className="mt-1">{result.mensaje}</p>
+    </div>
+  );
+}
+
+function CamposBasicos({
+  disabled = false,
+  datos,
+  onDatoChange,
+  password,
+  onPasswordChange,
+  onPasswordValidityChange,
+}) {
+  const controlledProps = (campo) =>
+    datos && onDatoChange
+      ? {
+          value: datos[campo],
+          onChange: (event) => onDatoChange(campo, event.target.value),
+        }
+      : {};
+
   return (
     <>
       <div className="grid gap-2">
         <Label>Nombre Completo</Label>
-        <Input name="nombre" required />
+        <Input
+          name="nombre"
+          placeholder="Ej. Juan Pérez García"
+          autoComplete="name"
+          disabled={disabled}
+          required
+          {...controlledProps("nombre")}
+        />
       </div>
       <div className="grid gap-2">
         <Label>Teléfono</Label>
-        <Input name="telefono" type="tel" required />
+        <Input
+          name="telefono"
+          type="tel"
+          placeholder="Ej. 55 5555 5555"
+          autoComplete="tel"
+          disabled={disabled}
+          required
+          {...controlledProps("telefono")}
+        />
       </div>
       <div className="grid gap-2">
         <Label>Correo</Label>
-        <Input name="email" type="email" required />
+        <Input
+          name="email"
+          type="email"
+          placeholder="Ej. nombre@correo.com"
+          autoComplete="email"
+          disabled={disabled}
+          required
+          {...controlledProps("email")}
+        />
       </div>
-      <div className="grid gap-2">
-        <Label>Contraseña</Label>
-        <Input name="password" type="password" required />
-      </div>
+      <PasswordField
+        disabled={disabled}
+        autoComplete="new-password"
+        placeholder="Ej. TrabajoSeguro#25"
+        helperText="Debe incluir una mayúscula y un símbolo especial."
+        showStrength
+        value={password}
+        onChange={onPasswordChange}
+        onValidityChange={onPasswordValidityChange}
+      />
     </>
   );
 }

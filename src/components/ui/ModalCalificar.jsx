@@ -9,7 +9,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Star, Loader2, MessageSquare } from "lucide-react";
+import { Star, Loader2, MessageSquare, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ModalCalificar({ solicitud }) {
@@ -18,7 +18,29 @@ export default function ModalCalificar({ solicitud }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comentario, setComentario] = useState("");
+  const [imagenes, setImagenes] = useState([]);
   const [guardando, setGuardando] = useState(false);
+
+  const subirImagenes = async (userId) => {
+    const urls = [];
+
+    for (const archivo of imagenes) {
+      const fileExt = archivo.name.split(".").pop();
+      const filePath = `${userId}/${solicitud.id}-${Date.now()}-${Math.random()}.${fileExt}`;
+      const { error } = await supabase.storage
+        .from("fotos_resenas")
+        .upload(filePath, archivo);
+
+      if (error) throw error;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("fotos_resenas").getPublicUrl(filePath);
+      urls.push(publicUrl);
+    }
+
+    return urls;
+  };
 
   const handleGuardar = async () => {
     if (rating === 0)
@@ -36,17 +58,50 @@ export default function ModalCalificar({ solicitud }) {
       return;
     }
 
-    // 2. Imprimimos lo que vamos a mandar para verificar que nada sea 'undefined'
+    let imagenesUrl = [];
+    try {
+      imagenesUrl = await subirImagenes(session.user.id);
+    } catch (error) {
+      console.error("Error al subir imágenes de reseña:", error);
+      toast.warning("No se pudieron subir las fotos; guardaré la reseña sin imágenes.");
+      imagenesUrl = [];
+    }
+
     const datosAEnviar = {
       solicitud_id: solicitud.id,
       cliente_id: session.user.id, // Forzamos usar el ID de la sesión segura
       trabajador_id: solicitud.trabajador_id,
       calificacion: rating,
       comentario: comentario,
+      imagenes: imagenesUrl,
     };
     console.log("Enviando a BD:", datosAEnviar);
 
     const { error } = await supabase.from("resenas").insert(datosAEnviar);
+
+    if (error?.code === "PGRST204" || error?.message?.includes("imagenes")) {
+      const { error: fallbackError } = await supabase.from("resenas").insert({
+        solicitud_id: solicitud.id,
+        cliente_id: session.user.id,
+        trabajador_id: solicitud.trabajador_id,
+        calificacion: rating,
+        comentario: comentario,
+      });
+
+      setGuardando(false);
+
+      if (fallbackError) {
+        console.error("🚨 ERROR AL GUARDAR RESEÑA:", fallbackError);
+        toast.error("Error al guardar la reseña.");
+        return;
+      }
+
+      toast.warning(
+        "Reseña guardada. Aplica la migración de Supabase para guardar fotos en comentarios.",
+      );
+      setAbierto(false);
+      return;
+    }
 
     setGuardando(false);
 
@@ -133,6 +188,25 @@ export default function ModalCalificar({ solicitud }) {
               value={comentario}
               onChange={(e) => setComentario(e.target.value)}
             />
+          </div>
+
+          <div className="w-full space-y-2">
+            <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <ImagePlus className="h-4 w-4 text-[#14A5B8]" />
+              Fotos del trabajo terminado (Opcional)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={(e) => setImagenes(Array.from(e.target.files || []))}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm"
+            />
+            {imagenes.length > 0 && (
+              <p className="text-xs font-bold text-slate-400">
+                {imagenes.length} foto(s) seleccionada(s)
+              </p>
+            )}
           </div>
 
           <Button

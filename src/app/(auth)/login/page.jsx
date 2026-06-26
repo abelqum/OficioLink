@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, EyeOff, Loader2 } from "lucide-react";
+import PasswordField from "@/components/ui/PasswordField";
+import { AlertCircle, CheckCircle2, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -15,10 +16,14 @@ export default function LoginPage() {
   const supabase = createClient();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [estadoOperacion, setEstadoOperacion] = useState("");
+  const [mensajeError, setMensajeError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMensajeError("");
+    setEstadoOperacion("Verificando correo y contraseña...");
 
     const formData = new FormData(e.target);
     const email = formData.get("email");
@@ -32,11 +37,14 @@ export default function LoginPage() {
       });
 
     if (authError) {
-      toast.error("Correo o contraseña incorrectos."); // <- ¡Así de fácil!
+      setMensajeError("Correo o contraseña incorrectos. Revisa tus datos e intenta de nuevo.");
+      setEstadoOperacion("");
+      toast.error("Correo o contraseña incorrectos.");
       setLoading(false);
       return;
     }
     const userId = authData.user.id;
+    setEstadoOperacion("Identificando tu tipo de cuenta...");
 
     // 2. ¿A dónde lo mandamos? Revisamos si es Trabajador
     const { data: trabajador } = await supabase
@@ -47,10 +55,12 @@ export default function LoginPage() {
 
     if (trabajador) {
       // Si encontró su ID en la tabla trabajadores, va para allá
+      setEstadoOperacion("Abriendo tu panel de trabajador...");
       toast.success("¡Bienvenido de nuevo!");
       router.push("/trabajador");
     } else {
       // Si no es trabajador, entonces es cliente
+      setEstadoOperacion("Abriendo tu panel de cliente...");
       router.push("/cliente");
     }
   };
@@ -98,39 +108,49 @@ export default function LoginPage() {
                   name="email"
                   type="email"
                   placeholder="correo@ejemplo.com"
-                  className="pl-10"
+                  autoComplete="email"
+                  className="h-11 pl-10"
+                  disabled={loading}
                   required
                 />
               </div>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input
-                  name="password"
-                  type="password"
-                  className="pl-10 pr-10"
-                  required
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400 hover:text-slate-600"
-                >
-                  <EyeOff className="h-5 w-5" />
-                </button>
+            <PasswordField disabled={loading} />
+
+            {(loading || mensajeError) && (
+              <div
+                role={mensajeError ? "alert" : "status"}
+                aria-live="polite"
+                className={`flex items-start gap-3 rounded-2xl border p-4 text-sm font-semibold ${
+                  mensajeError
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-[#14A5B8]/20 bg-[#14A5B8]/10 text-[#0f8494]"
+                }`}
+              >
+                {mensajeError ? (
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                ) : (
+                  <Loader2 className="mt-0.5 h-5 w-5 shrink-0 animate-spin" />
+                )}
+                <span>{mensajeError || estadoOperacion}</span>
               </div>
-            </div>
+            )}
 
             <Button
               disabled={loading}
               className="w-full h-12 text-base font-semibold bg-[#14A5B8] hover:bg-[#0f8494]"
             >
               {loading ? (
-                <Loader2 className="animate-spin h-5 w-5" />
+                <>
+                  <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                  Iniciando sesión...
+                </>
               ) : (
-                "Iniciar Sesión"
+                <>
+                  <CheckCircle2 className="h-5 w-5 mr-2" />
+                  Iniciar Sesión
+                </>
               )}
             </Button>
           </form>
