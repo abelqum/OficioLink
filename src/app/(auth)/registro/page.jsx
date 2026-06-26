@@ -378,17 +378,6 @@ export default function RegistroPage() {
       return;
     }
 
-    if (tipo === "trabajador" && (!identidadFile || !selfieFile)) {
-      const mensaje =
-        "Para crear tu perfil de trabajador, sube tu INE o identificación y una foto de tu rostro.";
-      setMensajeError(mensaje);
-      setEstadoRegistro("");
-      toast.error(mensaje);
-      setLoading(false);
-      setPasoTrabajador(3);
-      return;
-    }
-
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: emailRegistro,
       password,
@@ -435,13 +424,23 @@ export default function RegistroPage() {
     }
 
     try {
-      setEstadoRegistro("Revisando identificación y foto del rostro...");
+      const tieneIdentidadCompleta = Boolean(identidadFile && selfieFile);
+      const tieneIdentidadParcial = Boolean(identidadFile || selfieFile);
+      setEstadoRegistro(
+        tieneIdentidadCompleta
+          ? "Revisando identificación y foto del rostro..."
+          : "Creando perfil sin verificación de identidad...",
+      );
       const resultadoIdentidad =
         resultadoVerificacion ||
-        (await verificarIdentidadLocal(identidadFile, selfieFile));
+        (tieneIdentidadCompleta
+          ? await verificarIdentidadLocal(identidadFile, selfieFile)
+          : null);
       setResultadoVerificacion(resultadoIdentidad);
 
-      setEstadoRegistro("Subiendo foto y documentos...");
+      setEstadoRegistro(
+        tieneIdentidadCompleta ? "Subiendo foto y documentos..." : "Guardando tu perfil...",
+      );
       const avatarUrl = await subirArchivo("avatares", avatarFile, userId, "perfil");
       const identidadUrl = await subirArchivo(
         "verificaciones_identidad",
@@ -469,13 +468,17 @@ export default function RegistroPage() {
         avatar_url: avatarUrl,
         identidad_url: identidadUrl,
         identidad_selfie_url: selfieUrl,
-        verificacion_estado: resultadoIdentidad?.estado || "pendiente",
+        verificacion_estado:
+          resultadoIdentidad?.estado || (tieneIdentidadParcial ? "pendiente" : "sin_enviar"),
         verificacion_score: resultadoIdentidad?.score ?? null,
         verificacion_metodo: resultadoIdentidad?.metodo || null,
         verificacion_mensaje:
           resultadoIdentidad?.mensaje ||
-          "INE y foto del rostro recibidos para revisión de identidad.",
-        verificacion_actualizada_en: new Date().toISOString(),
+          (tieneIdentidadParcial
+            ? "Recibimos parte de tus documentos. Sube identificación y foto del rostro para completar la verificación."
+            : "Aún no envías una identificación. Los clientes podrían confiar menos en tu perfil hasta que completes la verificación."),
+        verificacion_actualizada_en:
+          resultadoIdentidad || tieneIdentidadParcial ? new Date().toISOString() : null,
       };
 
       setEstadoRegistro("Guardando tu perfil profesional...");
@@ -497,6 +500,12 @@ export default function RegistroPage() {
 
         toast.warning(
           "Cuenta creada. Aplica la migración de Supabase para activar multi-oficio, foto y verificación.",
+        );
+      }
+
+      if (!tieneIdentidadCompleta) {
+        toast.warning(
+          "Cuenta creada sin verificación. Puedes subir tu INE y foto de rostro después para generar más confianza.",
         );
       }
 
@@ -839,14 +848,13 @@ export default function RegistroPage() {
                     <StepHeader
                       icon={ShieldCheck}
                       title="Verificación de identidad"
-                      description="Para terminar, sube tu INE o identificación y una foto clara de tu rostro. Con eso registramos tu verificación."
+                      description="Puedes crear tu cuenta ahora y subir tu INE después. Verificarte ayuda a que los clientes confíen más al contratarte."
                     />
 
-                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                      Este paso evita perfiles incompletos. Al subir ambos archivos,
-                      el sistema intenta revisarlos automáticamente; si el navegador
-                      no puede comparar rostros, la cuenta se crea con revisión
-                      pendiente.
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                      La verificación no es obligatoria en este momento. Si la dejas
+                      pendiente, tu perfil aparecerá sin confirmar y algunos clientes
+                      podrían sentirse menos seguros al elegir tus servicios.
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
@@ -859,7 +867,6 @@ export default function RegistroPage() {
                           type="file"
                           accept="image/*,.pdf"
                           onChange={(e) => seleccionarIdentidad(e.target.files?.[0] || null)}
-                          required
                         />
                         <p className="text-xs text-slate-500">
                           Puede ser una foto del INE o un PDF. Si quieres revisión
@@ -875,7 +882,6 @@ export default function RegistroPage() {
                           type="file"
                           accept="image/*"
                           onChange={(e) => seleccionarSelfie(e.target.files?.[0] || null)}
-                          required
                         />
                         <p className="text-xs text-slate-500">
                           Rostro de frente, buena iluminación y sin lentes oscuros.
@@ -893,6 +899,27 @@ export default function RegistroPage() {
                         Revisando tus archivos automáticamente...
                       </div>
                     )}
+
+                    {!identidadFile && !selfieFile && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                        <p className="font-black text-slate-900">
+                          Puedes continuar sin documentos
+                        </p>
+                        <p className="mt-1">
+                          Tu cuenta se creará, pero el perfil quedará como no
+                          verificado. Podrás completar este paso después desde tus
+                          ajustes.
+                        </p>
+                      </div>
+                    )}
+
+                    {(identidadFile && !selfieFile) || (!identidadFile && selfieFile) ? (
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                        Para intentar la revisión automática necesitas subir ambos:
+                        identificación y foto del rostro. Si continúas así, la
+                        verificación quedará pendiente.
+                      </div>
+                    ) : null}
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
                       <p className="font-black text-slate-900">Resumen antes de crear</p>
@@ -954,7 +981,7 @@ export default function RegistroPage() {
                   ) : (
                     <Button
                       type="submit"
-                      disabled={loading || verificandoIdentidad || !identidadFile || !selfieFile}
+                      disabled={loading || verificandoIdentidad}
                       className="bg-[#14A5B8] h-12 rounded-xl font-bold"
                     >
                       {loading ? (
