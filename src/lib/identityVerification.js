@@ -1,5 +1,4 @@
 const FACE_SCORE_VERIFIED = 72;
-const FACE_SCORE_REJECTED = 45;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -111,7 +110,7 @@ export async function verificarIdentidadLocal(documentoFile, selfieFile) {
       score: null,
       metodo: "comparacion_facial_local",
       mensaje:
-        "Sube una imagen del INE o identificación y una selfie para comparar rostros.",
+        "Sube una imagen del INE o identificación y una foto del rostro para registrar la verificación.",
     };
   }
 
@@ -121,7 +120,7 @@ export async function verificarIdentidadLocal(documentoFile, selfieFile) {
       score: null,
       metodo: "comparacion_facial_local",
       mensaje:
-        "La comparación automática necesita imágenes. Si subes PDF, quedará pendiente para revisión.",
+        "Archivos recibidos. La comparación automática de rostro funciona mejor con imágenes; este registro queda pendiente.",
     };
   }
 
@@ -154,17 +153,7 @@ export async function verificarIdentidadLocal(documentoFile, selfieFile) {
         score,
         metodo: "comparacion_facial_local",
         mensaje:
-          "Rostros comparados automáticamente. La similitud fue suficiente para aprobar la verificación.",
-      };
-    }
-
-    if (score <= FACE_SCORE_REJECTED) {
-      return {
-        estado: "rechazado",
-        score,
-        metodo: "comparacion_facial_local",
-        mensaje:
-          "La selfie no coincide lo suficiente con el rostro del documento. Revisa iluminación, enfoque y que ambas imágenes sean de la misma persona.",
+          "INE y foto del rostro revisados automáticamente. La similitud fue suficiente para aprobar la verificación.",
       };
     }
 
@@ -173,7 +162,7 @@ export async function verificarIdentidadLocal(documentoFile, selfieFile) {
       score,
       metodo: "comparacion_facial_local",
       mensaje:
-        "La similitud no fue concluyente. El perfil queda pendiente para revisión manual.",
+        "INE y foto del rostro recibidos. La comparación no fue concluyente, así que la verificación queda pendiente.",
     };
   } catch (error) {
     return {
